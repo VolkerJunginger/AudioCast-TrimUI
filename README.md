@@ -35,8 +35,6 @@
 
 The channel exists during a game session and is recreated for each game. You may need to select it again after changing games.
 
-This is a **StockUI app ZIP**. It is not a `.pak` package and requires no changes to minarch or the RetroArch binary.
-
 ## ON and OFF
 
 | ON | OFF |
