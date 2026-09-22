@@ -1,0 +1,165 @@
+name: Build and release
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the verified v0.2.2 release
+        required: true
+        default: false
+        type: boolean
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux audio test dependencies
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - name: Fetch pinned Ableton Link
+        run: |
+          git clone https://github.com/Ableton/link.git link
+          cd link
+          git checkout 902aef95bf94af49746fdda5369b42cdcfa1e6d2
+          git submodule update --init --recursive
+      - name: Build and test launcher routing, ALSA and process cleanup
+        run: |
+          set -eu
+          cmake -S . -B host-build -DLINK_DIR="$PWD/link"
+          cmake --build host-build -j2
+          python3 tools/verify.py --build host-build
+          for script in Apps/AudioCast/*.sh; do sh -n "$script"; done
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/loveretro/tg5040-toolchain:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned Ableton Link
+        run: |
+          git clone https://github.com/Ableton/link.git link
+          cd link
+          git checkout 902aef95bf94af49746fdda5369b42cdcfa1e6d2
+          git submodule update --init --recursive
+      - name: Build ARM64 StockUI tools
+        run: |
+          set -eu
+          cmake -S . -B build -DLINK_DIR="$PWD/link" \
+            -DCMAKE_CXX_COMPILER=/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-g++
+          cmake --build build -j2
+      - name: Install package tools
+        run: apt-get update && apt-get install -y zip unzip python3 python3-pil
+      - name: Package and verify StockUI ZIP
+        run: |
+          set -eu
+          mkdir -p release/Apps/AudioCast/bin
+          install -m 0755 Apps/AudioCast/*.sh release/Apps/AudioCast/
+          install -m 0644 Apps/AudioCast/config.json release/Apps/AudioCast/
+          python3 tools/make_icon.py release/Apps/AudioCast/icon-on.png on
+          python3 tools/make_icon.py release/Apps/AudioCast/icon-off.png off
+          cp release/Apps/AudioCast/icon-off.png release/Apps/AudioCast/icon.png
+          install -m 0755 build/linkaudio-send build/audiocast-session build/alsa-probe build/audiocast-cksum release/Apps/AudioCast/bin/
+          install -m 0644 INSTALL.txt release/README.txt
+          install -m 0644 LICENSE release/LICENSE.txt
+          install -m 0644 THIRD_PARTY.md release/THIRD_PARTY.txt
+          mkdir -p release/LICENSES
+          install -m 0644 LICENSES/Ableton-Link.md release/LICENSES/
+          install -m 0644 link/modules/asio-standalone/asio/LICENSE_1_0.txt release/LICENSES/Asio.txt
+          cd release
+          zip -r ../AudioCast-StockUI-v0.2.2-GB-GBA.zip Apps README.txt LICENSE.txt THIRD_PARTY.txt LICENSES
+          cd ..
+          python3 tools/verify.py --package AudioCast-StockUI-v0.2.2-GB-GBA.zip
+          unzip -t AudioCast-StockUI-v0.2.2-GB-GBA.zip
+          sha256sum AudioCast-StockUI-v0.2.2-GB-GBA.zip > AudioCast-StockUI-v0.2.2-GB-GBA.zip.sha256
+      - name: Package corresponding source and checksums
+        run: |
+          set -eu
+          tar --exclude='./.git' --exclude='*/.git' --exclude='./build' --exclude='./host-build' --exclude='./release' --exclude='./dist' --exclude='*.zip' --exclude='*.sha256' --exclude='__pycache__' -czf /tmp/AudioCast-v0.2.2-source.tar.gz .
+          mv /tmp/AudioCast-v0.2.2-source.tar.gz .
+          sha256sum AudioCast-StockUI-v0.2.2-GB-GBA.zip AudioCast-v0.2.2-source.tar.gz > SHA256SUMS
+          tar -tzf AudioCast-v0.2.2-source.tar.gz > /tmp/source-files.txt
+          grep -q './src/sender.cpp' /tmp/source-files.txt
+          grep -q './link/include/ableton/LinkAudio.hpp' /tmp/source-files.txt
+          grep -q './link/modules/asio-standalone/asio/LICENSE_1_0.txt' /tmp/source-files.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: STOCKUI-ONLY--AudioCast-v0.2.2-GB-GBA
+          path: |
+            AudioCast-StockUI-v0.2.2-GB-GBA.zip
+            AudioCast-StockUI-v0.2.2-GB-GBA.zip.sha256
+            AudioCast-v0.2.2-source.tar.gz
+            SHA256SUMS
+          if-no-files-found: error
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'push' && github.event.head_commit.message == 'Publish AudioCast StockUI v0.2.2'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: STOCKUI-ONLY--AudioCast-v0.2.2-GB-GBA
+          path: dist
+      - name: Verify release assets again
+        working-directory: dist
+        run: |
+          sha256sum -c SHA256SUMS
+          sha256sum -c AudioCast-StockUI-v0.2.2-GB-GBA.zip.sha256
+          unzip -t AudioCast-StockUI-v0.2.2-GB-GBA.zip
+      - name: Publish stable release with verified ZIP and checksum
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const repo = context.repo;
+            const tag = 'stockui-v0.2.2';
+            const body = fs.readFileSync('RELEASE_NOTES.md', 'utf8');
+            let release;
+            try {
+              release = (await github.rest.repos.getReleaseByTag({...repo, tag})).data;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+            if (release) {
+              if (release.target_commitish !== context.sha)
+                throw new Error('Existing release belongs to another commit; refusing to overwrite.');
+              if (!release.draft) {
+                core.info('This release is already published; leaving it unchanged.');
+                return;
+              }
+            } else {
+              release = (await github.rest.repos.createRelease({
+                ...repo, tag_name: tag, target_commitish: context.sha,
+                name: 'AudioCast StockUI v0.2.2 — GB/GBA',
+                body, draft: true, prerelease: false
+              })).data;
+            }
+            const names = ['AudioCast-StockUI-v0.2.2-GB-GBA.zip',
+                           'AudioCast-StockUI-v0.2.2-GB-GBA.zip.sha256',
+                           'AudioCast-v0.2.2-source.tar.gz', 'SHA256SUMS'];
+            const assets = (await github.rest.repos.listReleaseAssets({
+              ...repo, release_id: release.id
+            })).data;
+            for (const name of names) {
+              const old = assets.find(a => a.name === name);
+              if (old) await github.rest.repos.deleteReleaseAsset({...repo, asset_id: old.id});
+              const data = fs.readFileSync('dist/' + name);
+              await github.rest.repos.uploadReleaseAsset({
+                ...repo, release_id: release.id, name, data,
+                headers: {
+                  'content-type': name.endsWith('.zip') ? 'application/zip' : name.endsWith('.gz') ? 'application/gzip' : 'text/plain',
+                  'content-length': data.length
+                }
+              });
+            }
+            await github.rest.repos.updateRelease({
+              ...repo, release_id: release.id, body, draft: false,
+              prerelease: false, make_latest: 'true'
+            });
+            core.info('Published ' + release.html_url);

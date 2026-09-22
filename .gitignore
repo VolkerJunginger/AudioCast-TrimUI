@@ -1,0 +1,15 @@
+build/
+host-build/
+link/
+release/
+dist/
+*.zip
+*.sha256
+__pycache__/
+*.pyc
+.DS_Store
+._*
+Apps/AudioCast/bin/
+Apps/AudioCast/enabled
+Apps/AudioCast/launchers.list
+Apps/AudioCast/icon*.png

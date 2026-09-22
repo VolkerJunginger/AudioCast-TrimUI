@@ -1,0 +1,7 @@
+{
+  "label": "AudioCast",
+  "description": "v0.2.2: Cast GB/GBA audio to Ableton Link",
+  "launch": "launch.sh",
+  "icontop": "icon.png",
+  "icon": ""
+}

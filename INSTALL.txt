@@ -1,0 +1,79 @@
+AudioCast StockUI v0.2.2 GB+GBA -- TrimUI Brick Hammer
+
+Stable GB/GBA release based on the device-tested v0.2b.1 implementation.
+Includes the bundled backup-verification tool; no system cksum is needed.
+
+PURPOSE
+Cast Game Boy .gb and Game Boy Advance .gba game audio to Link Audio "Brick Out"
+while preserving Brick speaker playback. This build affects only the existing
+Emus/GB/launch*.sh and Emus/GBA/launch*.sh scripts. It supports the card's default
+Gambatte/mGBA launchers and alternate mGBA/gpSP launchers. Other systems and apps
+remain unchanged. No separate game list and no ROM copies are needed.
+
+INSTALL AND USE
+1. Close games and ensure AudioCast is OFF before upgrading. Extract
+   AudioCast-StockUI-v0.2.2-GB-GBA.zip at the SD-card root.
+2. Reboot to clear old AudioCast senders/FIFOs. Connect to the Push Wi-Fi network.
+3. Launch "AudioCast" once. It backs up the GB/GBA launch scripts,
+   installs reversible wrappers, and enables routing. It returns to StockUI.
+4. Launch a .gb game from the normal GB entry or a .gba game from GBA.
+   On Push select the Link Audio channel "Brick Out" after the game starts.
+   The channel is recreated each game session; reselect it if needed.
+5. Play normally and quit the game before toggling AudioCast.
+6. Close the game and launch AudioCast again to turn OFF and restore scripts.
+
+REVERSAL
+Turn OFF before deleting/upgrading the app or changing GB/GBA launcher scripts.
+OFF restores original launcher bytes. Edited launchers/backups are preserved
+and reported rather than overwritten.
+Each managed script has .audiocast-original and .audiocast-run files; checksums
+and paths are recorded in Apps/AudioCast/launchers.list. An interrupted install
+or restore can be retried by launching AudioCast again.
+If the app is removed, wrappers fall back to their adjacent originals.
+For manual restoration, replace each wrapped GB/GBA launch*.sh with its matching
+.audiocast-original. Keep a backup first and never delete originals prematurely.
+Upgrade while AudioCast is OFF. Valid older checksum manifests remain supported.
+Blank checksums from the affected v0.2b installation cannot establish integrity;
+this update leaves those launchers/backups in place and reports the problem
+instead of claiming successful verification. Preserve them for manual review.
+
+SAFETY
+No firmware, /etc/asound.conf, global ALSA configuration, RetroArch binary,
+minarch, mixer controls, startup hooks or network settings are changed.
+Original emulator launch scripts retain their usual CPU/display setup.
+The ALSA and RetroArch configurations are private files under /tmp/audiocast-v0.2b.
+Only the launched game process tree receives ALSA_CONFIG_PATH.
+A silent, time-limited preflight checks the route before each game. If setup
+fails, it launches the original script with its original audio environment.
+Existing AudioCast session/FIFO paths also cause fallback to the original.
+ALSA plug converts game output to 48kHz stereo S16_LE before duplication.
+A nonblocking relay keeps draining the FIFO if the network sender fails, so
+sender failure/backpressure does not block the speaker path.
+Normal exits/signals stop owned child processes and clean up. Reboot clears
+stale /tmp files after a forced termination or power loss.
+
+RETROARCH SETTINGS
+The unmodified ra64.trimui runs with a /tmp copy of the normal main config.
+Save-on-exit is disabled. Automatic core/game configuration overrides are
+also disabled only during casting, so they cannot undo the audio route.
+Their files are unchanged; turning OFF restores normal override behavior.
+Normal game saves and core options remain in their usual locations.
+Do not save new overrides or change audio devices during a casting session.
+
+LOGGING AND VERIFICATION
+AudioCast does not create or append log files. Its output is discarded, and
+RetroArch file logging is disabled for the casting session only. Existing logs
+from older versions are left untouched and can be deleted manually.
+The AudioCast label and custom handheld/link icon appear in StockUI.
+The working GB/GBA audio and backup/restore implementation is retained.
+Linux tests cover ALSA/session routing, checksum failures and launcher recovery.
+Release checks verify ARM64 executables, the icon and StockUI ZIP contents.
+
+STATE ICONS
+The ON icon has a turquoise link and filled status dot. OFF has a gray link
+and hollow dot. This indicates casting is enabled, not a Push connection.
+The icon follows the actual enabled marker, including after a failed restore
+that disables casting but keeps backups for recovery. No log files are added.
+StockUI may cache icons: leave and reopen Apps, or reboot if it still shows
+an old icon. Audio casting and icon switching have been confirmed on the Hammer.
+Always turn AudioCast OFF before upgrading; the ZIP starts with the OFF icon.
