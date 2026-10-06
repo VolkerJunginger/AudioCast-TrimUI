@@ -2,6 +2,11 @@
 // Separate from the legacy sender: no 33025-Hz workaround or shared rate file.
 #include <ableton/LinkAudio.hpp>
 #include <unistd.h>
+#include "../sync/clock.h"
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <fcntl.h>
+#include <cstdlib>
 #include <poll.h>
 #include <signal.h>
 #include <cerrno>
@@ -21,6 +26,18 @@ int main() {
   link.enable(true);
   link.enableLinkAudio(true);
   ableton::LinkAudioSink sink(link, "Brick Out", 512);
+  int clockFd = -1;
+  sockaddr_un clockAddress{};
+  const char* clockPath = std::getenv("AUDIOCAST_CLOCK_SOCKET");
+  if (clockPath && std::strlen(clockPath) < sizeof(clockAddress.sun_path)) {
+    clockFd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    if (clockFd >= 0) {
+      fcntl(clockFd, F_SETFL, O_NONBLOCK);
+      fcntl(clockFd, F_SETFD, FD_CLOEXEC);
+      clockAddress.sun_family = AF_UNIX;
+      std::strcpy(clockAddress.sun_path, clockPath);
+    }
+  }
   std::printf("AudioCast v0.2b: 48000Hz stereo S16_LE; Link transport 48000Hz\n");
   int16_t samples[512];
   size_t filled = 0;
@@ -38,6 +55,16 @@ int main() {
     peak=0;
   };
   while (running) {
+    if (clockFd >= 0) {
+      auto state = link.captureAppSessionState();
+      auto linkNow = link.clock().micros();
+      ACClockSnapshot snapshot{AC_CLOCK_MAGIC, AC_CLOCK_VERSION,
+        ac_monotonic_us(), state.beatAtTime(linkNow, 4.0), state.tempo(),
+        static_cast<uint32_t>(link.numPeers()), state.isPlaying() ? 1U : 0U};
+      // Optional datagrams never block or determine whether audio is sent.
+      (void)sendto(clockFd, &snapshot, sizeof(snapshot), 0,
+        reinterpret_cast<const sockaddr*>(&clockAddress), sizeof(clockAddress));
+    }
     pollfd p{STDIN_FILENO, POLLIN, 0};
     int ready = poll(&p, 1, 100);
     auto now = std::chrono::steady_clock::now();
@@ -71,6 +98,7 @@ int main() {
   }
   report();
   std::printf("sender exit: partial_bytes=%zu (not a remote-delivery acknowledgement)\n", filled);
+  if (clockFd >= 0) close(clockFd);
   link.enableLinkAudio(false);
   link.enable(false);
   return 0;

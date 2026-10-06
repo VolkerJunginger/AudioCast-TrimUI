@@ -13,3 +13,14 @@ Apps/AudioCast/bin/
 Apps/AudioCast/enabled
 Apps/AudioCast/launchers.list
 Apps/AudioCast/icon*.png
+mgba/
+mgba-build/
+clock-test
+fms-probe
+Apps/AudioCastSync/bin/
+Apps/AudioCastSync/cores/
+Apps/AudioCastSync/saves/
+*.gba
+*.gb
+*.sav
+*.srm

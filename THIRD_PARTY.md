@@ -23,3 +23,12 @@ ALSA is loaded from the device at runtime; no firmware or ALSA library is bundle
 The source release includes this project's source and the exact Link/Asio sources fetched by the workflow. The build workflow and developer guide document the toolchain and commands.
 
 Ableton, Link, Push and TrimUI names identify compatible technology/devices. AudioCast is an independent project and is not endorsed by Ableton or TrimUI. Its icons are original artwork, not official vendor logos.
+
+## Experimental FMS sync core
+
+The separate FMS Link Sync preview uses mGBA at commit
+`3a5e34be33dc7f8f707e5bc9db69e8a430046f21`, under the Mozilla Public License 2.0.
+See `LICENSES/mGBA-MPL-2.0.txt`. Its integration patch and `sync/mgba-clock.c/.h`
+are supplied under MPL-2.0. The clock protocol header and the remaining AudioCast
+components use GPL-2.0-or-later. Corresponding preview source contains the pinned
+mGBA checkout, patch, and all additions. FMS and DMGo are not distributed.

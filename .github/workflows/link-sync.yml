@@ -1,0 +1,76 @@
+name: Experimental FMS Link Sync
+on:
+  pull_request:
+    paths: ['sync/**', 'tests/**', 'src/sender.cpp', 'tools/*sync*', 'tools/*mgba*', 'tools/build_probe.py', 'Apps/AudioCastSync/**', 'docs/FMS_LINK_SYNC.md', '.github/workflows/link-sync.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate clock grid and input data
+        run: |
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror tests/clock_test.c -lm -o clock-test
+          ./clock-test
+          for script in Apps/AudioCastSync/*.sh Apps/AudioCastSync/*.audiocast-*; do sh -n "$script"; done
+          python3 tests/sync_launcher_test.py
+      - name: Test the real sender clock bridge with a second Link participant
+        run: |
+          git clone https://github.com/Ableton/link.git link
+          git -C link checkout 902aef95bf94af49746fdda5369b42cdcfa1e6d2
+          git -C link submodule update --init --recursive
+          cmake -S . -B host-build -DLINK_DIR="$PWD/link" -DAUDIOCAST_CLOCK_TESTS=ON
+          cmake --build host-build -j2
+          python3 tests/sender_clock_test.py host-build
+      - name: Build pinned mGBA and private probe (no ROM included)
+        run: |
+          python3 tools/prepare_mgba.py mgba
+          cmake -S mgba -B mgba-build -C sync/mgba-options.cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake --build mgba-build -j2
+          python3 tools/build_probe.py mgba-build
+          python3 tools/build_probe.py mgba-build --synthetic --output core-clock-test
+          ./core-clock-test
+  build:
+    needs: host
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/loveretro/tg5040-toolchain:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned sources
+        run: |
+          git clone https://github.com/Ableton/link.git link
+          git -C link checkout 902aef95bf94af49746fdda5369b42cdcfa1e6d2
+          git -C link submodule update --init --recursive
+          python3 tools/prepare_mgba.py mgba
+      - name: Build ARM64 sender and isolated core
+        run: |
+          cmake -S . -B build -DLINK_DIR="$PWD/link" \
+            -DCMAKE_CXX_COMPILER=/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-g++
+          cmake --build build -j2
+          cmake -S mgba -B mgba-build -C sync/mgba-options.cmake \
+            -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER=/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-g++
+          cmake --build mgba-build -j2
+      - name: Package and validate experimental StockUI ZIP
+        run: |
+          apt-get update && apt-get install -y python3-pil zip unzip
+          python3 tools/package_sync.py --build build --core mgba-build/mgba_libretro.so \
+            --link link --output dist/AudioCast-StockUI-FMS-Link-Sync-preview.zip
+          unzip -t dist/AudioCast-StockUI-FMS-Link-Sync-preview.zip
+          mkdir -p source
+          git archive HEAD | tar -x -C source
+          cp -a link mgba source/
+          find source -name .git -prune -exec rm -rf {} +
+          tar -czf dist/AudioCast-FMS-Link-Sync-source.tar.gz -C source .
+          cd dist
+          sha256sum AudioCast-StockUI-FMS-Link-Sync-preview.zip AudioCast-FMS-Link-Sync-source.tar.gz > SHA256SUMS
+          sha256sum -c SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: STOCKUI-ONLY--FMS-Link-Sync-EXPERIMENTAL
+          path: dist/
+          if-no-files-found: error

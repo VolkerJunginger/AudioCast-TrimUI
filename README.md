@@ -73,3 +73,10 @@ AudioCast uses [Ableton Link](https://github.com/Ableton/link) and the [tg5040 t
 ## License
 
 [GPL-2.0-or-later](LICENSE), matching the open-source license used for Ableton Link. See [third-party notices](THIRD_PARTY.md) for dependency attribution.
+
+## Experimental FMS Link clock sync
+
+Development is underway on a separate **FMS Link Sync** StockUI app. It feeds
+Link clock pulses into FMS's external CLOCK input through a dedicated mGBA core.
+Local FMS 1.31 pulse/tempo tests pass; Brick/Push timing validation is pending.
+The stable release remains cast-only. See [setup, limits and test instructions](docs/FMS_LINK_SYNC.md).

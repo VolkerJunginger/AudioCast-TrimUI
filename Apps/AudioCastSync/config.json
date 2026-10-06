@@ -1,0 +1,7 @@
+{
+  "label": "FMS Link Sync",
+  "description": "Experimental Link clock input for FMS on StockUI",
+  "launch": "launch.sh",
+  "icontop": "icon.png",
+  "icon": ""
+}
