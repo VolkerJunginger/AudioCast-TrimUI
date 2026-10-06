@@ -79,6 +79,8 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
             ac.last = INT64_MIN; /* A changed Link phase must not stall behind the old grid. */
         ac.clock = s;
     }
+    bool pending = mTimingIsScheduled(&g->timing, &ac.rise);
+    int64_t pendingIndex = ac.pending;
     mTimingDeschedule(&g->timing, &ac.rise);
     ac.active = ac_clock_valid(&ac.clock, now) && ac.clock.peers > 0;
     if (!ac.active) { mTimingDeschedule(&g->timing, &ac.fall); level(&ac, 0); ac.last = INT64_MIN; return; }
@@ -86,6 +88,20 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
     /* masterCycles is always maintained; globalCycles is debugger-only upstream.
        Unsigned subtraction handles the 32-bit timing counter wrapping. */
     ac.cycles = (uint32_t)mTimingCurrentTime(&g->timing);
+    /* A deadline can straddle the video-frame boundary by a few CPU cycles.
+       Retain that one edge within 1 ms, even if rounding placed it
+       just outside the previous frame's planning window; never catch up a backlog of missed edges. */
+    if ((pending || (ac.last != INT64_MIN && pendingIndex == ac.last + 1)) &&
+        pendingIndex > ac.last) {
+        double delta = (pendingIndex / (double)ac.ppqn - ac_beat_at(&ac.clock, ac.host)) *
+            60000000.0 / ac.clock.tempo;
+        if (fabs(delta) <= 1000) {
+            ac.pending = pendingIndex;
+            int32_t cycles = delta > 0 ? (int32_t)llround(delta * AC_GBA_HZ / 1000000.0) : 1;
+            mTimingSchedule(&g->timing, &ac.rise, cycles > 0 ? cycles : 1);
+            return;
+        }
+    }
     int64_t due = ac_next_pulse(&ac.clock, ac.host, ac.ppqn, ac.last, &ac.pending);
     int64_t delay = (int64_t)llround((due - ac.host) * AC_GBA_HZ / 1000000.0);
     /* Plan only the next video frame. Later frames can refresh tempo and phase. */

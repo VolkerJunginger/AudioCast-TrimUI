@@ -97,8 +97,9 @@ CrossMix, NextUI and Knulli integration is not included.
   Stale snapshots and peer loss stop new pulses and return SC low.
 - Clock math tests verify packet validity, missed-pulse skipping, duplicate
   protection and 10,000-edge deadline drift within one microsecond.
-- Synthetic core test: all 803 edges arrive at 12 PPQN / 400 BPM, including
-  multiple clock edges inside one video frame, with a simulated 1 ms SC poll.
+- Synthetic core test: all 24,109 edges arrive at 12 PPQN / 400 BPM, including
+  multiple clock edges inside one video frame and a 32-bit cycle-counter wrap,
+  with a simulated 1 ms SC poll over five emulated minutes.
 - Actual two-participant Link test: the existing sender exports the peer's
   90/150 BPM tempo even while PCM input is idle; receiver loss is harmless.
 - Hardware performance, audible offset and long-session alignment remain to test.

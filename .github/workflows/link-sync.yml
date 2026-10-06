@@ -62,7 +62,7 @@ jobs:
             --link link --output dist/AudioCast-StockUI-FMS-Link-Sync-preview.zip
           unzip -t dist/AudioCast-StockUI-FMS-Link-Sync-preview.zip
           mkdir -p source
-          git archive HEAD | tar -x -C source
+          git -c safe.directory="$PWD" archive HEAD | tar -x -C source
           cp -a link mgba source/
           find source -name .git -prune -exec rm -rf {} +
           tar -czf dist/AudioCast-FMS-Link-Sync-source.tar.gz -C source .

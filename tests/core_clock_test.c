@@ -38,17 +38,18 @@ int main(void) {
     int fd=socket(AF_UNIX,SOCK_DGRAM,0);assert(fd>=0);
     struct sockaddr_un addr={.sun_family=AF_UNIX};strcpy(addr.sun_path,path);
     struct ACClockSnapshot s={AC_CLOCK_MAGIC,AC_CLOCK_VERSION,1000000,0,400,1,0};
-    for(int f=0;f<600;f++) {
+    const int frame_count=18000; /* > 2^32 CPU cycles: test timing-counter wrap. */
+    for(int f=0;f<frame_count;f++) {
         int64_t now=1000000+(int64_t)llround(f*280896.0/16777216*1000000);
         s.monotonic_us=now;s.beat=(now-1000000)*400/60000000.0;
         assert(sendto(fd,&s,sizeof(s),0,(struct sockaddr*)&addr,sizeof(addr))==sizeof(s));
         AudioCastClockFrameAt(c,now);c->runFrame(c);
     }
-    unsigned expected=(unsigned)floor(600*280896.0/16777216*400/60*12);
+    unsigned expected=(unsigned)floor(frame_count*280896.0/16777216*400/60*12);
     printf("12 PPQN / 400 BPM: %u rising edges, expected %u\n",edges,expected);
     assert(edges==expected);
-    unsigned before=edges;AudioCastClockFrameAt(c,12000000);c->runFrame(c);assert(edges==before && !(g->sio.rcnt&1));
+    unsigned before=edges;AudioCastClockFrameAt(c,s.monotonic_us+1000000);c->runFrame(c);assert(edges==before && !(g->sio.rcnt&1));
     AudioCastClockRebase(c);AudioCastClockDetach(c);assert(access(path,F_OK)!=0);close(fd);
     mCoreConfigDeinit(&c->config);c->deinit(c);free(video);
-    puts("PASS: CPU-cycle pulses at maximum supported rate, 1 ms polling, stale feed and cleanup");
+    puts("PASS: CPU-cycle pulses at maximum supported rate, 32-bit timing wrap, 1 ms polling, stale feed and cleanup");
 }
