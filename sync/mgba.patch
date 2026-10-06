@@ -12,7 +12,7 @@ index 834e9fd..e5e4cac 100644
  	set_target_properties(${BINARY_NAME}_libretro PROPERTIES PREFIX "" COMPILE_DEFINITIONS "__LIBRETRO__;COLOR_16_BIT;COLOR_5_6_5;DISABLE_THREADING;MGBA_STANDALONE;${OS_DEFINES};${FUNCTION_DEFINES};ENABLE_VFS;MINIMAL_CORE=2")
  	target_link_libraries(${BINARY_NAME}_libretro ${OS_LIB})
 diff --git a/src/platform/libretro/libretro.c b/src/platform/libretro/libretro.c
-index 12e7913..a3900c0 100644
+index 12e7913..35417e2 100644
 --- a/src/platform/libretro/libretro.c
 +++ b/src/platform/libretro/libretro.c
 @@ -1,3 +1,4 @@
@@ -20,15 +20,17 @@ index 12e7913..a3900c0 100644
  /* Copyright (c) 2013-2015 Jeffrey Pfau
   *
   * This Source Code Form is subject to the terms of the Mozilla Public
-@@ -612,6 +613,7 @@ void retro_run(void) {
+@@ -612,7 +613,9 @@ void retro_run(void) {
  		}
  	}
  
 +	AudioCastClockFrame(core);
  	core->runFrame(core);
++	AudioCastClockReady(core);
  	unsigned width, height;
  	core->currentVideoSize(core, &width, &height);
-@@ -838,6 +840,7 @@ static void _setupMaps(struct mCore* core) {
+ 	videoCallback(outputBuffer, width, height, BYTES_PER_PIXEL * 256);
+@@ -838,6 +841,7 @@ static void _setupMaps(struct mCore* core) {
  
  void retro_reset(void) {
  	core->reset(core);
@@ -36,7 +38,7 @@ index 12e7913..a3900c0 100644
  	mRumbleIntegratorReset(&rumble);
  	_setupMaps(core);
  }
-@@ -989,6 +992,7 @@ bool retro_load_game(const struct retro_game_info* game) {
+@@ -989,6 +993,7 @@ bool retro_load_game(const struct retro_game_info* game) {
  #endif
  
  	core->reset(core);
@@ -44,7 +46,7 @@ index 12e7913..a3900c0 100644
  	_setupMaps(core);
  
  	return true;
-@@ -998,6 +1002,7 @@ void retro_unload_game(void) {
+@@ -998,6 +1003,7 @@ void retro_unload_game(void) {
  	if (!core) {
  		return;
  	}
@@ -52,7 +54,7 @@ index 12e7913..a3900c0 100644
  	mCoreConfigDeinit(&core->config);
  	core->deinit(core);
  	mappedMemoryFree(data, dataSize);
-@@ -1041,6 +1046,7 @@ bool retro_unserialize(const void* data, size_t size) {
+@@ -1041,6 +1047,7 @@ bool retro_unserialize(const void* data, size_t size) {
  	}
  	struct VFile* vfm = VFileFromConstMemory(data, size);
  	bool success = mCoreLoadStateNamed(core, vfm, SAVESTATE_RTC);

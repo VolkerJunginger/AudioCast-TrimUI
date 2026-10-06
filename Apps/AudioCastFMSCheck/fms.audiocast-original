@@ -1,0 +1,3 @@
+#!/bin/sh
+# Refuse a failed capture preflight instead of reporting a misleading core test.
+exit 74

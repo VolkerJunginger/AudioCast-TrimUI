@@ -13,6 +13,12 @@
 
 ## What it does
 
+Experimental clock-sync development now targets a [virtual link cable through
+normal game launches](docs/VIRTUAL_LINK_CABLE.md), governed by AudioCast ON/OFF.
+The dedicated FMS launch/test apps failed on the Hammer and are superseded.
+The stable release remains audio casting only; hardware clock sync is not yet
+verified, and DMGo serial-link support is not implemented.
+
 - Casts **Game Boy `.gb` and Game Boy Advance `.gba`** audio through the existing StockUI game menus.
 - Sends **48 kHz stereo audio** to the Link Audio channel **Brick Out**.
 - Keeps normal Brick speaker output.

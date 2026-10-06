@@ -13,19 +13,21 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <errno.h>
+#include <stdio.h>
 #define AC_GBA_HZ 16777216.0
 #define AC_PULSE_CYCLES 33554 /* 2 ms; FMS 1.31 polls SC every ~1 ms. */
 struct ACDriver {
     struct GBASIODriver d;
     struct mTimingEvent rise, fall;
     struct ACClockSnapshot clock;
-    int fd, ppqn, high, active;
+    int fd, ppqn, high, active, ready;
     int64_t offset, host, last, pending;
     uint32_t cycles;
     char socket_path[sizeof(((struct sockaddr_un*)0)->sun_path)];
 };
 /* Libretro owns one core per process. */
-static struct ACDriver ac;
+static struct ACDriver ac = {.fd = -1};
 static bool handles(struct GBASIODriver* d, enum GBASIOMode m) { (void)d; return m == GBA_SIO_GPIO; }
 static int connected(struct GBASIODriver* d) { (void)d; return 0; }
 static uint16_t writeRCNT(struct GBASIODriver* d, uint16_t v) {
@@ -63,6 +65,22 @@ void AudioCastClockRebase(struct mCore* c) {
     ac.last = INT64_MIN; ac.active = 0; level(&ac, 0);
 }
 void AudioCastClockFrame(struct mCore* c) { AudioCastClockFrameAt(c, ac_monotonic_us()); }
+/* One-byte first-frame handshake, not a diagnostic log. The launch session
+   owns this temporary path and removes it during cleanup. It distinguishes
+   a core that actually ran from a loader/initialization failure. */
+void AudioCastClockReady(struct mCore* c) {
+    (void)c;
+    if (ac.ready) return;
+    const char* path = getenv("AUDIOCAST_CLOCK_SOCKET");
+    if (!path || strlen(path) >= sizeof(ac.socket_path)) return;
+    char marker[sizeof(ac.socket_path) + sizeof(".ready")];
+    snprintf(marker, sizeof(marker), "%s.ready", path);
+    int fd = open(marker, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0600);
+    if (fd < 0) { if (errno == EEXIST) ac.ready = 1; return; }
+    ac.ready = write(fd, "1", 1) == 1;
+    close(fd);
+    if (!ac.ready) unlink(marker);
+}
 void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
     if (ac.fd < 0 || c->platform(c) != mPLATFORM_GBA) return;
     struct GBA* g = c->board;
@@ -110,6 +128,8 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
 }
 void AudioCastClockAttach(struct mCore* c) {
     memset(&ac, 0, sizeof(ac)); ac.fd = -1;
+    const char* protocol = getenv("AUDIOCAST_LINK_PROTOCOL");
+    if (protocol && strcmp(protocol, "gba-clock")) return;
     const char* path = getenv("AUDIOCAST_CLOCK_SOCKET");
     if (!path || c->platform(c) != mPLATFORM_GBA || strlen(path) >= sizeof(ac.socket_path)) return;
     const char* p = getenv("AUDIOCAST_PPQN");

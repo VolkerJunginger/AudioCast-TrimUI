@@ -25,7 +25,8 @@ with tempfile.TemporaryDirectory() as tmp:
         shutil.copyfile(root / "Apps/AudioCast" / name, app / name)
     # The private socket can survive a forced emulator kill; this session owns it.
     run = app / "run.sh"
-    run.write_text(run.read_text().replace('"$AC_RUN/override.cfg"\n  rmdir', '"$AC_RUN/override.cfg" "$AC_RUN/clock.sock"\n  rmdir'))
+    runtime_script = run.read_text().replace('/tmp/audiocast-v0.2b', '/tmp/audiocast-fms-sync').replace('/tmp/audiocast.fifo', '/tmp/audiocast-fms-sync.fifo')
+    run.write_text(runtime_script.replace('"$AC_RUN/override.cfg"\n  rmdir', '"$AC_RUN/override.cfg" "$AC_RUN/clock.sock"\n  rmdir'))
     (app / "enabled").touch()
     (app / "bin").mkdir(); (app / "cores").mkdir(); (app / "saves").mkdir()
     for n in names: shutil.copyfile(a.build / n, app / "bin" / n)

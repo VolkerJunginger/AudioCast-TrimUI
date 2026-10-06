@@ -1,7 +1,7 @@
-name: Experimental FMS Link Sync
+name: Experimental Virtual Link Cable
 on:
   pull_request:
-    paths: ['sync/**', 'tests/**', 'src/sender.cpp', 'tools/*sync*', 'tools/*mgba*', 'tools/build_probe.py', 'Apps/AudioCastSync/**', 'docs/FMS_LINK_SYNC.md', '.github/workflows/link-sync.yml']
+    paths: ['sync/**', 'tests/**', 'src/sender.cpp', 'src/core_probe.cpp', 'CMakeLists.txt', 'tools/*sync*', 'tools/*mgba*', 'tools/build_probe.py', 'tools/package_virtual_cable.py', 'Apps/AudioCast/**', 'docs/VIRTUAL_LINK_CABLE.md', '.github/workflows/link-sync.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -14,8 +14,8 @@ jobs:
         run: |
           cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror tests/clock_test.c -lm -o clock-test
           ./clock-test
-          for script in Apps/AudioCastSync/*.sh Apps/AudioCastSync/*.audiocast-*; do sh -n "$script"; done
-          python3 tests/sync_launcher_test.py
+          for script in Apps/AudioCast/*.sh Apps/AudioCast/cable/*.sh; do sh -n "$script"; done
+          python3 tests/virtual_cable_launcher_test.py
       - name: Test the real sender clock bridge with a second Link participant
         run: |
           git clone https://github.com/Ableton/link.git link
@@ -32,6 +32,9 @@ jobs:
           python3 tools/build_probe.py mgba-build
           python3 tools/build_probe.py mgba-build --synthetic --output core-clock-test
           ./core-clock-test
+          cc -std=gnu11 -D_POSIX_C_SOURCE=200809L -I mgba/src/platform/libretro tests/libretro_lifecycle.c -ldl -o libretro-lifecycle
+          ./host-build/audiocast-core-probe mgba-build/mgba_libretro.so
+          ./libretro-lifecycle mgba-build/mgba_libretro.so
   build:
     needs: host
     runs-on: ubuntu-latest
@@ -55,12 +58,21 @@ jobs:
             -DCMAKE_C_COMPILER=/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-gcc \
             -DCMAKE_CXX_COMPILER=/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-g++
           cmake --build mgba-build -j2
+      - name: Test ARM64 loading and actual libretro execution on Cortex-A53
+        run: |
+          apt-get update && apt-get install -y qemu-user
+          /opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-gcc \
+            -std=gnu11 -D_POSIX_C_SOURCE=200809L -I mgba/src/platform/libretro \
+            tests/libretro_lifecycle.c -ldl -o build/libretro-lifecycle
+          AC_SDK_SYSROOT=$(/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-gcc -print-sysroot)
+          qemu-aarch64 -cpu cortex-a53 -L "$AC_SDK_SYSROOT" build/audiocast-core-probe mgba-build/mgba_libretro.so
+          qemu-aarch64 -cpu cortex-a53 -L "$AC_SDK_SYSROOT" build/libretro-lifecycle mgba-build/mgba_libretro.so
       - name: Package and validate experimental StockUI ZIP
         run: |
           apt-get update && apt-get install -y python3-pil zip unzip
-          python3 tools/package_sync.py --build build --core mgba-build/mgba_libretro.so \
-            --link link --output dist/AudioCast-StockUI-FMS-Link-Sync-preview.zip
-          unzip -t dist/AudioCast-StockUI-FMS-Link-Sync-preview.zip
+          python3 tools/package_virtual_cable.py --build build --core mgba-build/mgba_libretro.so \
+            --link link --output dist/AudioCast-StockUI-Virtual-Link-Cable-preview.zip
+          unzip -t dist/AudioCast-StockUI-Virtual-Link-Cable-preview.zip
           mkdir -p source
           git -c safe.directory="$PWD" archive HEAD | tar -x -C source
           cp -a link mgba source/
@@ -72,12 +84,12 @@ jobs:
           forbidden = {'.gb', '.gba', '.sav', '.srm', '.log', '.pak'}
           assert not any(p.suffix.lower() in forbidden for p in Path('source').rglob('*') if p.is_file())
           PYTHON
-          tar -czf dist/AudioCast-FMS-Link-Sync-source.tar.gz -C source .
+          tar -czf dist/AudioCast-Virtual-Link-Cable-source.tar.gz -C source .
           cd dist
-          sha256sum AudioCast-StockUI-FMS-Link-Sync-preview.zip AudioCast-FMS-Link-Sync-source.tar.gz > SHA256SUMS
+          sha256sum AudioCast-StockUI-Virtual-Link-Cable-preview.zip AudioCast-Virtual-Link-Cable-source.tar.gz > SHA256SUMS
           sha256sum -c SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: STOCKUI-ONLY--FMS-Link-Sync-EXPERIMENTAL
+          name: STOCKUI-ONLY--Virtual-Link-Cable-EXPERIMENTAL
           path: dist/
           if-no-files-found: error

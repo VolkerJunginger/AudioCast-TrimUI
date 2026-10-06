@@ -35,6 +35,7 @@ with tempfile.TemporaryDirectory(prefix="ac-sync-test-") as tmp:
     data = json.loads(capture.read_text())
     assert data["args"] == [str(app / "fms.audiocast-run"), str(rom)]
     assert data["ppqn"] == "2" and data["offset"] == "0"
+    assert data["socket"] == "/tmp/audiocast-fms-sync/clock.sock"
     assert (app / "saves").is_dir()
     assert not (sd / "Emus").exists()
     (app / "clock-settings.txt").write_text("PPQN=4\nOFFSET_US=-12000\n")

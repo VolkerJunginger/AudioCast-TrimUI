@@ -5,6 +5,7 @@
 struct mCore;
 void AudioCastClockAttach(struct mCore* core);
 void AudioCastClockFrame(struct mCore* core);
+void AudioCastClockReady(struct mCore* core);
 void AudioCastClockFrameAt(struct mCore* core, int64_t host_us);
 void AudioCastClockRebase(struct mCore* core);
 void AudioCastClockDetach(struct mCore* core);

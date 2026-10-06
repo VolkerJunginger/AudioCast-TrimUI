@@ -1,0 +1,5 @@
+# Optional virtual link cable. Casting works independently of this setting.
+# Protocols currently implemented: off, gba-clock (SC rising-edge pulses).
+PROTOCOL=off
+PPQN=2
+OFFSET_US=0

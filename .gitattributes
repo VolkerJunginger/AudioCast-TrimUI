@@ -1,0 +1,2 @@
+# Unified patch context necessarily has a leading space before source tabs.
+sync/*.patch whitespace=-space-before-tab

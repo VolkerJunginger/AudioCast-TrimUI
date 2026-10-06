@@ -1,5 +1,10 @@
 # FMS Link Sync — experimental StockUI build
 
+**Superseded prototype.** The dedicated launcher failed to open FMS on the
+tested Hammer. The current direction is [normal-game virtual link cable
+integration](VIRTUAL_LINK_CABLE.md), with no FMS-launching app. Do not use this
+document as instructions for a finished sync release.
+
 This separate app makes FMS's sequencer follow the tempo and pulse grid of the
 Ableton Link session while AudioCast sends its sound to **Brick Out**. It targets
 **TrimUI Brick Hammer with StockUI**. The existing AudioCast app and ordinary
@@ -13,6 +18,8 @@ build, not a replacement for the stable AudioCast v0.2.2 release.
 
 1. Extract **AudioCast-StockUI-FMS-Link-Sync-preview.zip** onto the SD card.
    The new app folder is `Apps/AudioCastSync`. No `.pak` installation is used.
+   When copying with Finder, copy only `AudioCastSync` into the existing `Apps`
+   folder; do not replace the whole `Apps` folder.
 2. Edit `Apps/AudioCastSync/rom-path.txt` to contain the path of your own FMS ROM,
    relative to the SD root. The default is `Roms/GBA/fms.gba`. Paths with spaces
    work. FMS is not included.
@@ -44,6 +51,8 @@ from another core.
 - Sound pitch and emulator speed stay at their normal values.
 - Normal speaker output and the existing 48 kHz stereo S16 AudioCast route remain.
 - Closing the app tears down the audio session and temporary clock socket.
+- The sync preview uses its own `/tmp/audiocast-fms-sync` directory and
+  `/tmp/audiocast-fms-sync.fifo`, separate from regular AudioCast's runtime.
 - The app writes no diagnostic log. Battery saves are intentional user data.
 
 `clock-settings.txt` contains two optional settings:

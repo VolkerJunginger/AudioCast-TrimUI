@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+"""Package one AudioCast app, with normal-game virtual cable integration."""
+import argparse,hashlib,json,shutil,struct,subprocess,sys,tempfile,zipfile
+from pathlib import Path
+parser=argparse.ArgumentParser()
+parser.add_argument('--build',type=Path,required=True);parser.add_argument('--core',type=Path,required=True)
+parser.add_argument('--link',type=Path,required=True);parser.add_argument('--output',type=Path,required=True)
+parser.add_argument('--host',action='store_true',help='Layout test only; not installable on Brick')
+args=parser.parse_args();ROOT=Path(__file__).resolve().parent.parent
+bins=['linkaudio-send','audiocast-session','alsa-probe','audiocast-cksum','audiocast-core-probe']
+def arm64(p):
+  header=p.read_bytes()[:64]
+  assert header[:6]==b'\x7fELF\x02\x01' and struct.unpack_from('<H',header,18)[0]==183,p
+if not args.host:
+  for p in [args.core]+[args.build/n for n in bins]:arm64(p)
+with tempfile.TemporaryDirectory() as t:
+  stage=Path(t);app=stage/'Apps/AudioCast';shutil.copytree(ROOT/'Apps/AudioCast',app)
+  (app/'bin').mkdir();(app/'cores').mkdir()
+  for n in bins:shutil.copyfile(args.build/n,app/'bin'/n);(app/'bin'/n).chmod(0o755)
+  shutil.copyfile(args.core,app/'cores/mgba-link_libretro.so');(app/'cores/mgba-link_libretro.so').chmod(0o755)
+  config=app/'cable/config.txt';config.write_text(config.read_text().replace('PROTOCOL=off','PROTOCOL=gba-clock'))
+  meta=json.loads((app/'config.json').read_text());meta['description']='Experimental virtual GBA clock cable and GB/GBA audio casting'
+  (app/'config.json').write_text(json.dumps(meta,indent=2)+'\n')
+  for state in ['on','off']:subprocess.run([sys.executable,str(ROOT/'tools/make_icon.py'),str(app/('icon-'+state+'.png')),state],check=True)
+  shutil.copyfile(app/'icon-off.png',app/'icon.png')
+  for p in app.rglob('*.sh'):p.chmod(0o755);subprocess.run(['sh','-n',str(p)],check=True)
+  shutil.copyfile(ROOT/'docs/VIRTUAL_LINK_CABLE.md',stage/'README.txt')
+  shutil.copyfile(ROOT/'THIRD_PARTY.md',stage/'THIRD_PARTY.txt');(stage/'LICENSES').mkdir()
+  for p in [ROOT/'LICENSE',ROOT/'LICENSES/mGBA-MPL-2.0.txt',ROOT/'LICENSES/mGBA-inih.txt',ROOT/'LICENSES/Ableton-Link.md']:
+    shutil.copyfile(p,stage/'LICENSES'/p.name)
+  shutil.copyfile(args.link/'modules/asio-standalone/asio/LICENSE_1_0.txt',stage/'LICENSES/Asio.txt')
+  args.output.parent.mkdir(parents=True,exist_ok=True)
+  with zipfile.ZipFile(args.output,'w',zipfile.ZIP_DEFLATED) as z:
+    for p in sorted(stage.rglob('*')):
+      if p.is_file():z.write(p,p.relative_to(stage))
+  with zipfile.ZipFile(args.output) as z:
+    assert z.testzip() is None
+    assert all(n.startswith(('Apps/AudioCast/','LICENSES/')) or n in ['README.txt','THIRD_PARTY.txt'] for n in z.namelist())
+    assert not any(n.lower().endswith(('.gb','.gba','.sav','.srm','.log','.pak')) for n in z.namelist())
+    assert json.loads(z.read('Apps/AudioCast/config.json'))['label']=='AudioCast'
+    assert b'PROTOCOL=gba-clock\n' in z.read('Apps/AudioCast/cable/config.txt')
+    assert 'Apps/AudioCast/enabled' not in z.namelist() and 'Apps/AudioCast/launchers.list' not in z.namelist()
+    for n in bins:assert (z.getinfo('Apps/AudioCast/bin/'+n).external_attr>>16)&0o111
+  args.output.with_suffix(args.output.suffix+'.sha256').write_text(hashlib.sha256(args.output.read_bytes()).hexdigest()+'  '+args.output.name+'\n')
+print('PASS: ARM64 unless --host, ZIP integrity, one AudioCast app, normal game launch, disabled install state, no ROMs/saves/logs/.pak')

@@ -1,0 +1,52 @@
+#!/bin/sh
+# Normal launcher integration: choose by core/protocol, never by ROM filename.
+selected=0
+remaining=$#
+while [ "$remaining" -gt 0 ]; do
+  argument="$1"; shift; remaining=$((remaining - 1))
+  if [ "$argument" = -L ] && [ "$remaining" -gt 0 ]; then
+    core="$1"; shift; remaining=$((remaining - 1))
+    case "$core" in
+      */mgba_libretro.so)
+        set -- "$@" -L "$AC_APP/cores/mgba-link_libretro.so"
+        selected=1
+        original_core="$core";;
+      *) set -- "$@" -L "$core";;
+    esac
+  else
+    set -- "$@" "$argument"
+  fi
+done
+if [ "$selected" = 0 ]; then
+  unset AUDIOCAST_CLOCK_SOCKET AUDIOCAST_PPQN AUDIOCAST_OFFSET_US AUDIOCAST_LINK_PROTOCOL AUDIOCAST_CABLE_ACTIVE
+  exec "$AC_SD/RetroArch/ra64.trimui" --config "$AC_RUN/ra.cfg" --appendconfig "$AC_RUN/override.cfg" "$@"
+fi
+mkdir -p "$AC_APP/cable/states" || exit 1
+cat >> "$AC_RUN/override.cfg" <<CFG
+savestate_directory = "$AC_APP/cable/states"
+savestate_auto_load = "false"
+savestate_auto_save = "false"
+video_shader_enable = "false"
+rewind_enable = "false"
+run_ahead_enabled = "false"
+preemptive_frames_enable = "false"
+fastforward_ratio = "1.0"
+CFG
+"$AC_SD/RetroArch/ra64.trimui" --config "$AC_RUN/ra.cfg" --appendconfig "$AC_RUN/override.cfg" "$@"
+result=$?
+# A crash/error before the private core completes a frame falls back once to
+# the installed core. A failed test must not make normal FMS unlaunchable.
+if [ ! -f "$AC_RUN/clock.sock.ready" ]; then
+  remaining=$#
+  while [ "$remaining" -gt 0 ]; do
+    argument="$1"; shift; remaining=$((remaining - 1))
+    if [ "$argument" = -L ] && [ "$remaining" -gt 0 ]; then
+      core="$1"; shift; remaining=$((remaining - 1))
+      [ "$core" != "$AC_APP/cores/mgba-link_libretro.so" ] || core="$original_core"
+      set -- "$@" -L "$core"
+    else set -- "$@" "$argument"; fi
+  done
+  unset AUDIOCAST_CLOCK_SOCKET AUDIOCAST_PPQN AUDIOCAST_OFFSET_US AUDIOCAST_LINK_PROTOCOL AUDIOCAST_CABLE_ACTIVE
+  exec "$AC_SD/RetroArch/ra64.trimui" --config "$AC_RUN/ra.cfg" --appendconfig "$AC_RUN/override.cfg" "$@"
+fi
+exit "$result"

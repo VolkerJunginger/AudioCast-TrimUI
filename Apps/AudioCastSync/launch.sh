@@ -28,6 +28,6 @@ if [ -r "$AC_SYNC/clock-settings.txt" ]; then
   done < "$AC_SYNC/clock-settings.txt"
 fi
 mkdir -p "$AC_SYNC/saves" || exit 1
-export AUDIOCAST_CLOCK_SOCKET=/tmp/audiocast-v0.2b/clock.sock
+export AUDIOCAST_CLOCK_SOCKET=/tmp/audiocast-fms-sync/clock.sock
 export AUDIOCAST_PPQN="$PPQN" AUDIOCAST_OFFSET_US="$OFFSET_US"
 exec /bin/sh "$AC_SYNC/run.sh" "$AC_SYNC/fms.audiocast-run" "$ROM"

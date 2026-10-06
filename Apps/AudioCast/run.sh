@@ -29,7 +29,7 @@ cleanup() {
     wait "$SESSION" 2>/dev/null || :
   fi
   [ "$OWN_FIFO" = 0 ] || rm -f "$FIFO"
-  rm -f "$AC_RUN/alsa.conf" "$AC_RUN/ra.cfg" "$AC_RUN/override.cfg"
+  rm -f "$AC_RUN/alsa.conf" "$AC_RUN/ra.cfg" "$AC_RUN/override.cfg" "$AC_RUN/clock.sock" "$AC_RUN/clock.sock.ready"
   rmdir "$AC_RUN" 2>/dev/null || :
 }
 trap cleanup EXIT
@@ -63,6 +63,7 @@ auto_overrides_enable = "false"
 EOF
 cp "$AC_SD/RetroArch/retroarch.cfg" "$AC_RUN/ra.cfg" || exit 1
 export AC_APP AC_SD AC_RUN
+if [ -r "$AC_APP/cable/env.sh" ]; then . "$AC_APP/cable/env.sh"; fi
 # The child preflight sets ALSA_CONFIG_PATH only after the route opens cleanly.
 "$AC_APP/bin/audiocast-session" "$AC_APP/bin/linkaudio-send" "$FIFO" \
   /bin/sh "$AC_APP/start-game.sh" "$SCRIPT" "$@" &
