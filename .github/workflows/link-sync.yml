@@ -65,6 +65,13 @@ jobs:
           git -c safe.directory="$PWD" archive HEAD | tar -x -C source
           cp -a link mgba source/
           find source -name .git -prune -exec rm -rf {} +
+          # Upstream emulator test fixtures are not needed to rebuild this core.
+          rm -rf source/mgba/cinema
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          forbidden = {'.gb', '.gba', '.sav', '.srm', '.log', '.pak'}
+          assert not any(p.suffix.lower() in forbidden for p in Path('source').rglob('*') if p.is_file())
+          PYTHON
           tar -czf dist/AudioCast-FMS-Link-Sync-source.tar.gz -C source .
           cd dist
           sha256sum AudioCast-StockUI-FMS-Link-Sync-preview.zip AudioCast-FMS-Link-Sync-source.tar.gz > SHA256SUMS

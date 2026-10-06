@@ -105,7 +105,7 @@ CrossMix, NextUI and Knulli integration is not included.
 - Hardware performance, audible offset and long-session alignment remain to test.
 
 GitHub Actions builds and checks the additive ARM64 StockUI ZIP plus corresponding
-source. It does not publish a stable release or include an FMS ROM/save. The
+source (excluding upstream ROM/save test fixtures). It does not publish a stable release or include an FMS ROM/save. The
 optional `tests/fms_probe.c` needs your privately supplied FMS 1.31 ROM. It reads
 version-specific runtime counters only for assertions; production code never
 patches ROM contents, settings, or sequencer memory.
