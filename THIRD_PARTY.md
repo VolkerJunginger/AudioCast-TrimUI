@@ -28,7 +28,8 @@ Ableton, Link, Push and TrimUI names identify compatible technology/devices. Aud
 
 The separate FMS Link Sync preview uses mGBA at commit
 `3a5e34be33dc7f8f707e5bc9db69e8a430046f21`, under the Mozilla Public License 2.0.
-See `LICENSES/mGBA-MPL-2.0.txt`. Its integration patch and `sync/mgba-clock.c/.h`
+See `LICENSES/mGBA-MPL-2.0.txt`. The compiled inih parser is BSD licensed;
+its notice is in `LICENSES/mGBA-inih.txt`. Its integration patch and `sync/mgba-clock.c/.h`
 are supplied under MPL-2.0. The clock protocol header and the remaining AudioCast
 components use GPL-2.0-or-later. Corresponding preview source contains the pinned
 mGBA checkout, patch, and all additions. FMS and DMGo are not distributed.

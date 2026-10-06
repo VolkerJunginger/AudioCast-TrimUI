@@ -12,6 +12,8 @@ preemptive_frames_enable = "false"
 audio_sync = "true"
 video_vsync = "true"
 CFG
+# Resolve StockUI's relative assets and BIOS paths as its GBA launcher does.
+cd "$AC_SD/RetroArch" || exit 1
 # Keep this profile's saves separate from the existing FMS setup.
 exec "$AC_SD/RetroArch/ra64.trimui" --config "$AC_RUN/ra.cfg" \
   --appendconfig "$AC_RUN/override.cfg" \

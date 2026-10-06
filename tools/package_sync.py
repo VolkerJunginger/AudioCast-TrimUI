@@ -38,7 +38,7 @@ with tempfile.TemporaryDirectory() as tmp:
     shutil.copyfile(root / "docs/FMS_LINK_SYNC.md", stage / "README.txt")
     shutil.copyfile(root / "THIRD_PARTY.md", stage / "THIRD_PARTY.txt")
     (stage / "LICENSES").mkdir()
-    for source in [root / "LICENSE", root / "LICENSES/mGBA-MPL-2.0.txt", root / "LICENSES/Ableton-Link.md"]:
+    for source in [root / "LICENSE", root / "LICENSES/mGBA-MPL-2.0.txt", root / "LICENSES/mGBA-inih.txt", root / "LICENSES/Ableton-Link.md"]:
         shutil.copyfile(source, stage / "LICENSES" / source.name)
     shutil.copyfile(a.link / "modules/asio-standalone/asio/LICENSE_1_0.txt", stage / "LICENSES/Asio.txt")
     a.output.parent.mkdir(parents=True, exist_ok=True)
