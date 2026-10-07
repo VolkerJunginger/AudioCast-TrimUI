@@ -5,6 +5,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include("${LINK_DIR}/AbletonLinkConfig.cmake")
 add_executable(linkaudio-send src/sender.cpp)
 target_link_libraries(linkaudio-send Ableton::Link)
+# GCC's optimized build warns on copied placeholder metadata in the pinned
+# Link headers. Keep these upstream warnings visible; our warnings stay errors.
+# Sink::commit and PCMEncoder fill that metadata before sending a buffer.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(linkaudio-send PRIVATE -Wno-error=maybe-uninitialized)
+endif()
 add_executable(audiocast-session src/session.cpp)
 add_executable(audiocast-cksum src/checksum.cpp)
 add_executable(alsa-probe src/alsa_probe.cpp)
