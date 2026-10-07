@@ -21,7 +21,7 @@ struct ACDriver {
     struct GBASIODriver d;
     struct mTimingEvent rise, fall;
     struct ACClockSnapshot clock;
-    int fd, ppqn, high, active, ready;
+    int fd, ppqn, high, active, ready, tempoLatch;
     int64_t offset, wall, last, pending;
     double host;
     unsigned frames, pulses, relocks, expired;
@@ -66,11 +66,12 @@ static void rising(struct mTiming* t, void* ctx, uint32_t late) {
     int64_t host = a->host + (int64_t)llround(elapsed * 1000000.0 / AC_GBA_HZ);
     /* Keep a steady oscillator in emulated CPU time. Correct phase only at
        edges, never by moving the pending edge on each video-frame wakeup.
-       At most 400 ppm (100 us per 250 ms pulse) avoids audible catch-up bursts. */
+       At most 400 ppm (100 us per 250 ms pulse) avoids catch-up bursts.
+       Tempo-latch mode uses the exact period with no phase correction. */
     double period = 60000000.0 / (a->clock.tempo * a->ppqn);
     double error = (a->last / (double)a->ppqn - ac_beat_at(&a->clock, host)) *
         60000000.0 / a->clock.tempo;
-    double correction = error / 64.0;
+    double correction = a->tempoLatch ? 0.0 : error / 64.0;
     double limit = period * 0.0004;
     if (correction > limit) correction = limit;
     if (correction < -limit) correction = -limit;
@@ -106,8 +107,8 @@ void AudioCastClockReady(struct mCore* c) {
 }
 static void report(void) {
     if (!ac.diagnostics) return;
-    fprintf(stderr, "AUDIOCAST_CLOCK frames=%u pulses=%u relocks=%u expired=%u interval_us=%.1f..%.1f phase_error_max_us=%.1f scheduler=pulse-pll edge_correction_max_us=%.1f\n",
-        ac.frames, ac.pulses, ac.relocks, ac.expired, ac.intervalMin, ac.intervalMax, ac.errorMax, ac.correctionMax);
+    fprintf(stderr, "AUDIOCAST_CLOCK frames=%u pulses=%u relocks=%u expired=%u interval_us=%.1f..%.1f phase_error_max_us=%.1f scheduler=%s edge_correction_max_us=%.1f\n",
+        ac.frames, ac.pulses, ac.relocks, ac.expired, ac.intervalMin, ac.intervalMax, ac.errorMax, ac.tempoLatch ? "tempo-latch" : "pulse-pll", ac.correctionMax);
 }
 void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
     if (ac.fd < 0 || c->platform(c) != mPLATFORM_GBA) return;
@@ -138,11 +139,12 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
     uint32_t cycles = (uint32_t)mTimingCurrentTime(&g->timing);
     double target = now + ac.offset;
     /* Advance on emulated CPU time. Slowly discipline this mapping against
-       Link's monotonic clock instead of injecting each frame's scheduling jitter.
-       Unsigned subtraction handles the timing counter's 32-bit wrap. */
+       Link's monotonic clock in the phase-tracking mode. Tempo-latch keeps
+       this mapping free-running too. Unsigned subtraction handles timer wrap. */
     double predicted = ac.host + (uint32_t)(cycles - ac.cycles) * 1000000.0 / AC_GBA_HZ;
     double error = target - predicted;
-    bool relock = !wasActive || phaseJump || now - ac.wall > 250000 || fabs(error) > 250000;
+    bool relock = !wasActive || now - ac.wall > 250000 ||
+        (!ac.tempoLatch && (phaseJump || fabs(error) > 250000));
     if (relock) {
         ac.host = target; ac.last = INT64_MIN; ac.edgeTempo = 0; ac.relocks++;
         mTimingDeschedule(&g->timing, &ac.fall); level(&ac, 0);
@@ -151,14 +153,17 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
         double correction = error / 240.0;
         if (correction > 100) correction = 100;
         if (correction < -100) correction = -100;
-        ac.host = predicted + correction;
+        ac.host = predicted + (ac.tempoLatch ? 0.0 : correction);
     }
     ac.cycles = cycles; ac.wall = now;
     ac.frames++;
     if (ac.frames % 600 == 0) report();
     /* Retain a scheduled edge across ordinary frame/Link updates. Explicit
        tempo changes, reconnects and discontinuities may retime it once. */
-    if (!relock && ac.pending > ac.last && ac.scheduledTempo == ac.clock.tempo) return;
+    /* In tempo-latch mode even a confirmed tempo change leaves the pending
+       edge intact. Its callback applies the new period to the following edge. */
+    if (!relock && ac.pending > ac.last &&
+        (ac.tempoLatch || ac.scheduledTempo == ac.clock.tempo)) return;
     mTimingDeschedule(&g->timing, &ac.rise);
     ac.scheduledTempo = ac.clock.tempo;
     int64_t delay;
@@ -192,6 +197,8 @@ void AudioCastClockAttach(struct mCore* c) {
     ac.offset = offset ? strtoll(offset, &end, 10) : 0;
     if (offset && (!*offset || !end || *end)) return;
     if (ac.offset < -250000 || ac.offset > 250000) return;
+    const char* mode = getenv("AUDIOCAST_CLOCK_MODE");
+    ac.tempoLatch = mode && !strcmp(mode, "tempo-latch");
     ac.fd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (ac.fd < 0) return;
     fcntl(ac.fd, F_SETFL, O_NONBLOCK); fcntl(ac.fd, F_SETFD, FD_CLOEXEC);

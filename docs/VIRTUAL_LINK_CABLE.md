@@ -8,7 +8,8 @@ FMS receives clock pulses through the normal GBA launcher on the Hammer.
 The latest device test reports stable audio and improved latency, but beat-to-beat
 clock timing remains uneven. The current diagnostic patch retains the working
 64 ms audio buffer and temporary CPU performance policy. The two-second tempo
-sampling mode is disabled; the sender supplies continuous live Link snapshots.
+sampling mode is disabled. The next diagnostic tests a change-triggered tempo
+latch with a steady CPU-cycle clock and zero ongoing phase correction.
 This remains a hardware test build, not a stable sync release.
 
 ## Signal path and supported protocol
@@ -161,3 +162,30 @@ the existing clock behavior is preserved. Deterministic tests cover sampling,
 beat continuity, TTL, disconnect and rejoin. Native two-peer tests verify tempo
 changes and sparse fresh heartbeats while idle and during actual Link Audio
 streaming. Push dropout recovery still requires a hardware test.
+
+## Change-triggered tempo latch test
+
+`AUDIOCAST_CLOCK_MODE=tempo-latch` opts into a tempo-only local clock in both
+sender and private core. On peer connection it takes Link's tempo and initial
+phase. The sender checks tempo in the background every 500 ms. An actual change
+opens a one-second window with 100 ms checks; a moving candidate restarts the
+window and a return to the held tempo cancels it. Once the new tempo stays stable
+for one second, the sender updates the rate once, preserving local beat position.
+An unchanged tempo never reanchors the oscillator. Small numeric noise is ignored.
+
+The core holds an exact CPU-cycle pulse period with zero ongoing phase correction.
+A newly confirmed tempo takes effect after the pending pulse, avoiding a shortened
+or doubled pulse interval. This follows tempo without continuously pulling notes
+back onto Link's grid; hardware clock drift can accumulate between connections.
+Peer loss or stale heartbeats stop clock output. Reconnection and long frontend
+pauses align again rather than replaying a backlog. Link Play/Stop is not transport.
+
+Fresh local heartbeats remain at 100 ms for the existing 500 ms stale-feed guard.
+The audio sender's PCM path, 48 kHz rate, timestamp recovery, channel and participant
+are unchanged. The diagnostic patch retains the current 64 ms buffer, CPU policy,
+icons and normal game launchers and produces the requested SD-root log. Log lines
+show held tempo, background checks, listening windows and actual rate latches;
+the core identifies `scheduler=tempo-latch` with zero edge correction. Tests cover
+five minutes at constant tempo despite phase steps, moving/reversed candidates,
+confirmed changes, disconnect/rejoin, stale data and real Link IPC. Audible FMS
+stability remains a hardware test requirement.

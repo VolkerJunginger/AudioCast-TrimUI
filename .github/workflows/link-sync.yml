@@ -30,7 +30,9 @@ jobs:
           cmake --build host-build -j2
           python3 tests/sender_clock_test.py host-build
           python3 tests/sender_clock_test.py host-build --tempo-hold
+          python3 tests/sender_clock_test.py host-build --tempo-latch
           python3 tests/sender_audio_test.py host-build
+          python3 tests/sender_audio_test.py host-build --tempo-latch
       - name: Build pinned mGBA and private probe (no ROM included)
         run: |
           python3 tools/prepare_mgba.py mgba

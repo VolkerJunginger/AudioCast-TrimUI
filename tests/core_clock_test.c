@@ -39,6 +39,7 @@ static void sampling(struct mTiming* t,void* ctx,uint32_t late) {
 }
 static void quiet(struct mLogger*l,int cat,enum mLogLevel lev,const char*f,va_list a){(void)l;(void)cat;(void)lev;(void)f;(void)a;}
 int main(void) {
+    unsetenv("AUDIOCAST_CLOCK_MODE");
     struct mLogger log={.log=quiet};mLogSetDefaultLogger(&log);
     struct mCore* c=GBACoreCreate();assert(c->init(c));mCoreInitConfig(c,NULL);
     mColor* video=calloc(240*160,sizeof(mColor));c->setVideoBuffer(c,video,240);
@@ -111,10 +112,34 @@ int main(void) {
     printf("Tempo change to 150 BPM: %u edges, interval %.1f..%.1f us\n",edges-before,minInterval,maxInterval);
     assert(edges-before>=149 && edges-before<=152);
     assert(intervals>140 && minInterval>199800 && maxInterval<200200);
+    AudioCastClockDetach(c);setenv("AUDIOCAST_CLOCK_MODE","tempo-latch",1);AudioCastClockAttach(c);
+    lastEdge=0;intervals=0;minInterval=maxInterval=0;
+    epoch=s.monotonic_us+1000000;s.tempo=120;
+    for(int f=0;f<18000;f++) {
+        int64_t now=epoch+(int64_t)llround(f*280896.0/16777216*1000000*1.0002)+(f%2?15000:0);
+        s.monotonic_us=now;
+        // Phase steps exceed the old relock threshold, and frontend drift
+        // accumulates. Neither may disturb the tempo-only pulse oscillator.
+        s.beat=(now-epoch)*120/60000000.0+(f/300%2?0.4:-0.4);
+        assert(sendto(fd,&s,sizeof(s),0,(struct sockaddr*)&addr,sizeof(addr))==sizeof(s));
+        AudioCastClockFrameAt(c,now);c->runFrame(c);
+    }
+    printf("Tempo latch / five minutes / Link phase steps: interval %.1f..%.1f us\n",minInterval,maxInterval);
+    assert(intervals>1100 && minInterval>249900 && maxInterval<250100);
+    epoch=s.monotonic_us+17000;startBeat=ac_beat_at(&s,epoch);s.tempo=150;
+    for(int f=0;f<1800;f++) {
+        int64_t now=epoch+(int64_t)llround(f*280896.0/16777216*1000000);
+        s.monotonic_us=now;s.beat=startBeat+(now-epoch)*150/60000000.0;
+        if(f==30){lastEdge=0;intervals=0;minInterval=maxInterval=0;}
+        assert(sendto(fd,&s,sizeof(s),0,(struct sockaddr*)&addr,sizeof(addr))==sizeof(s));
+        AudioCastClockFrameAt(c,now);c->runFrame(c);
+    }
+    printf("Tempo latch / confirmed 150 BPM: interval %.1f..%.1f us\n",minInterval,maxInterval);
+    assert(intervals>140 && minInterval>199900 && maxInterval<200100);
     before=edges;s.peers=0;s.monotonic_us+=17000;
     assert(sendto(fd,&s,sizeof(s),0,(struct sockaddr*)&addr,sizeof(addr))==sizeof(s));
     AudioCastClockFrameAt(c,s.monotonic_us);c->runFrame(c);assert(edges==before);
     AudioCastClockDetach(c);assert(access(path,F_OK)!=0);close(fd);
     mCoreConfigDeinit(&c->config);c->deinit(c);free(video);
-    puts("PASS: CPU-cycle pulses at maximum supported rate, 32-bit timing wrap, 1 ms polling, uneven frames, aged snapshots, drift, phase corrections, tempo changes, peer loss, stale feed and cleanup");
+    puts("PASS: CPU-cycle pulses at maximum supported rate, 32-bit timing wrap, 1 ms polling, uneven frames, aged snapshots, drift, phase corrections, tempo changes, tempo-only oscillator, peer loss, stale feed and cleanup");
 }

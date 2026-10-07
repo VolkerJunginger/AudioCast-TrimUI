@@ -61,7 +61,10 @@ int main() {
   const bool timingDiagnostics=diagnosticSetting && std::strcmp(diagnosticSetting,"1")==0;
   const char* refreshSetting=std::getenv("AUDIOCAST_CLOCK_REFRESH_MS");
   const bool holdTempo=refreshSetting && std::strcmp(refreshSetting,"2000")==0;
+  const char* clockMode=std::getenv("AUDIOCAST_CLOCK_MODE");
+  const bool latchTempo=clockMode && std::strcmp(clockMode,"tempo-latch")==0;
   TempoHold heldClock;
+  TempoLatch latchedClock;
   uint64_t clockDelivered=0;
   auto report = [&]() {
     std::printf("stats: fifo_buffers=%llu committed=%llu no_buffer=%llu commit_rejected=%llu peak=%u\n",
@@ -74,14 +77,34 @@ int main() {
         (long long)timeline.lagMin,(long long)timeline.lagMax,(long long)timeline.gapMax,
         (unsigned long long)timeline.recoveries,(unsigned long long)timeline.longGaps,link.numPeers());
       timeline.reported();
-      if (holdTempo && clockFd>=0)
+      if (latchTempo && clockFd>=0)
+        std::printf("clock_source: mode=tempo-latch check_ms=500 change_window_ms=1000 heartbeat_ms=100 checks=%llu latches=%llu windows=%llu snapshots=%llu delivered=%llu tempo=%.3f listening=%d peers=%zu\n",
+          (unsigned long long)latchedClock.checks,(unsigned long long)latchedClock.latches,
+          (unsigned long long)latchedClock.windows,(unsigned long long)latchedClock.snapshots,
+          (unsigned long long)clockDelivered,latchedClock.anchor.tempo,latchedClock.listening,link.numPeers());
+      else if (holdTempo && clockFd>=0)
         std::printf("clock_source: mode=tempo-hold refresh_ms=2000 heartbeat_ms=100 samples=%llu snapshots=%llu delivered=%llu tempo=%.3f peers=%zu\n",
           (unsigned long long)heldClock.samples,(unsigned long long)heldClock.snapshots,
           (unsigned long long)clockDelivered,heldClock.anchor.tempo,link.numPeers());
     }
   };
   while (running) {
-    if (clockFd >= 0 && holdTempo) {
+    if (clockFd >= 0 && latchTempo) {
+      const auto now=ac_monotonic_us();
+      const auto peers=static_cast<uint32_t>(link.numPeers());
+      const bool publish=latchedClock.publishDue(now,peers);
+      if(latchedClock.checkDue(now,peers)) {
+        auto state=link.captureAppSessionState();
+        const auto linkNow=link.clock().micros();
+        latchedClock.observe(now,state.beatAtTime(linkNow,4.0),state.tempo(),peers,state.isPlaying()?1U:0U);
+      }
+      if(publish) {
+        const auto snapshot=latchedClock.publish(now,peers);
+        if(sendto(clockFd,&snapshot,sizeof(snapshot),0,
+          reinterpret_cast<const sockaddr*>(&clockAddress),sizeof(clockAddress))==sizeof(snapshot))
+          ++clockDelivered;
+      }
+    } else if (clockFd >= 0 && holdTempo) {
       const auto now=ac_monotonic_us();
       const auto peers=static_cast<uint32_t>(link.numPeers());
       if (heldClock.publishDue(now,peers)) {

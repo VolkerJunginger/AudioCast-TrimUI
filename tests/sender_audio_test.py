@@ -2,7 +2,7 @@
 import argparse,math,os,struct,subprocess,tempfile,time,socket,threading
 from pathlib import Path
 
-p=argparse.ArgumentParser();p.add_argument('build',type=Path);args=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('build',type=Path);p.add_argument('--tempo-latch',action='store_true');args=p.parse_args()
 build=args.build.resolve()
 def clock():return time.clock_gettime(time.CLOCK_MONOTONIC)
 
@@ -20,7 +20,7 @@ def run(directory,name,recovery,slow):
     reader=threading.Thread(target=drain_clock);reader.start()
     with received.open('w') as rx,sent.open('w') as tx:
         sender=subprocess.Popen([str(build/'linkaudio-send')],stdin=subprocess.PIPE,stdout=tx,stderr=tx,
-            env=dict(os.environ,AUDIOCAST_AUDIO_RECOVERY=str(int(recovery)),AUDIOCAST_AUDIO_DIAGNOSTICS='1',AUDIOCAST_CLOCK_SOCKET=clock_path,AUDIOCAST_CLOCK_REFRESH_MS='2000'))
+            env=dict(os.environ,AUDIOCAST_AUDIO_RECOVERY=str(int(recovery)),AUDIOCAST_AUDIO_DIAGNOSTICS='1',AUDIOCAST_CLOCK_SOCKET=clock_path,AUDIOCAST_CLOCK_REFRESH_MS='' if args.tempo_latch else '2000',AUDIOCAST_CLOCK_MODE='tempo-latch' if args.tempo_latch else ''))
         peer=subprocess.Popen([str(build/'link-audio-peer')]+(['8'] if slow else []),stdout=rx,stderr=rx)
         try:
             target=clock();deadline=target+55;frames=0;ready=False
@@ -68,15 +68,19 @@ def run(directory,name,recovery,slow):
         assert max(abs(e) for e in errors)<100, (min(errors),max(errors))
         assert age<500000,age
     print('%s: received=%d max_timestamp_age_us=%d clock_heartbeats=%d'%(name,len(rows),age,len(clock_packets)))
+    if args.tempo_latch:
+        assert 'clock_source: mode=tempo-latch' in diagnostics
+        assert any(abs(packet[4]-150)<.01 for packet,arrival in clock_packets)
     return age
 
 with tempfile.TemporaryDirectory(prefix='ac-link-audio-') as directory:
     directory=Path(directory)
     run(directory,'steady-with-tempo-change',True,False)
-    legacy=run(directory,'short-stalls-legacy',False,True)
-    recovered=run(directory,'short-stalls-recovery',True,True)
-    # A receiver playing at four-beat latency / 120 BPM cannot play a packet
-    # that is already >2 seconds old. This is an age test, not a Push emulator.
-    assert legacy>2000000,legacy
-    assert recovered<250000,recovered
-print('PASS: actual non-silent stereo PCM, fragmented input, tempo change and packet continuity; legacy timestamps expire under short stalls while recovery stays fresh')
+    if not args.tempo_latch:
+        legacy=run(directory,'short-stalls-legacy',False,True)
+        recovered=run(directory,'short-stalls-recovery',True,True)
+        # A receiver playing at four-beat latency / 120 BPM cannot play a packet
+        # that is already >2 seconds old. This is an age test, not a Push emulator.
+        assert legacy>2000000,legacy
+        assert recovered<250000,recovered
+print('PASS: actual non-silent stereo PCM, fragmented input, tempo change and packet continuity; tempo-latch='+str(args.tempo_latch))
