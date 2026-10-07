@@ -82,11 +82,39 @@ int main(void) {
     }
     printf("Jittered frames / 120 BPM / 2 PPQN: %u edges, interval %.1f..%.1f us\n",edges,minInterval,maxInterval);
     assert(edges>=200 && edges<=202);
-    assert(intervals>190 && minInterval>249000 && maxInterval<251000);
+    assert(intervals>190 && minInterval>249800 && maxInterval<250200);
+    /* Small Link phase corrections must not move a pending pulse. Exercise
+       both correction directions with much larger video scheduling jitter. */
+    epoch=s.monotonic_us+200000;
+    double startBeat=ac_beat_at(&s,epoch);
+    lastEdge=0;intervals=0;minInterval=maxInterval=0;
+    for(int f=0;f<3000;f++) {
+        int64_t now=epoch+(int64_t)llround(f*280896.0/16777216*1000000)+(f%2?15000:0);
+        s.monotonic_us=now;
+        s.beat=startBeat+(now-epoch)*120/60000000.0+(f/300%2?0.04:-0.04);
+        assert(sendto(fd,&s,sizeof(s),0,(struct sockaddr*)&addr,sizeof(addr))==sizeof(s));
+        AudioCastClockFrameAt(c,now);c->runFrame(c);
+    }
+    printf("Phase corrections / bursty frames: interval %.1f..%.1f us\n",minInterval,maxInterval);
+    assert(intervals>190 && minInterval>249800 && maxInterval<250200);
+    /* A deliberate tempo change must still arrive immediately. Exclude the
+       single transition interval; the following intervals must match 150 BPM. */
+    epoch=s.monotonic_us+17000;startBeat=ac_beat_at(&s,epoch);s.tempo=150;
+    before=edges;
+    for(int f=0;f<1800;f++) {
+        int64_t now=epoch+(int64_t)llround(f*280896.0/16777216*1000000);
+        s.monotonic_us=now;s.beat=startBeat+(now-epoch)*150/60000000.0;
+        if(f==30){lastEdge=0;intervals=0;minInterval=maxInterval=0;}
+        assert(sendto(fd,&s,sizeof(s),0,(struct sockaddr*)&addr,sizeof(addr))==sizeof(s));
+        AudioCastClockFrameAt(c,now);c->runFrame(c);
+    }
+    printf("Tempo change to 150 BPM: %u edges, interval %.1f..%.1f us\n",edges-before,minInterval,maxInterval);
+    assert(edges-before>=149 && edges-before<=152);
+    assert(intervals>140 && minInterval>199800 && maxInterval<200200);
     before=edges;s.peers=0;s.monotonic_us+=17000;
     assert(sendto(fd,&s,sizeof(s),0,(struct sockaddr*)&addr,sizeof(addr))==sizeof(s));
     AudioCastClockFrameAt(c,s.monotonic_us);c->runFrame(c);assert(edges==before);
     AudioCastClockDetach(c);assert(access(path,F_OK)!=0);close(fd);
     mCoreConfigDeinit(&c->config);c->deinit(c);free(video);
-    puts("PASS: CPU-cycle pulses at maximum supported rate, 32-bit timing wrap, 1 ms polling, uneven frames, aged snapshots, drift, peer loss, stale feed and cleanup");
+    puts("PASS: CPU-cycle pulses at maximum supported rate, 32-bit timing wrap, 1 ms polling, uneven frames, aged snapshots, drift, phase corrections, tempo changes, peer loss, stale feed and cleanup");
 }

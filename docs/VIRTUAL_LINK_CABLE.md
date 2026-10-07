@@ -4,11 +4,12 @@ The intended workflow is **AudioCast ON → open a ROM from its normal game list
 select external sync in that program**. AudioCast supplies the virtual cable in
 the emulator. No app launches FMS or another music program on the user's behalf.
 
-FMS now receives clock pulses through the normal GBA launcher on the Hammer.
-The latest device test reports acceptable clock timing but audio on Push can
-become silent until a restart. Successful local commits do not confirm remote
-playback. The next diagnostic iteration reduces clock work;
-it remains a hardware test build, not a stable sync release.
+FMS receives clock pulses through the normal GBA launcher on the Hammer.
+The latest device test reports stable audio and improved latency, but beat-to-beat
+clock timing remains uneven. The current diagnostic patch retains the working
+64 ms audio buffer and temporary CPU performance policy. The two-second tempo
+sampling mode is disabled; the sender supplies continuous live Link snapshots.
+This remains a hardware test build, not a stable sync release.
 
 ## Signal path and supported protocol
 
@@ -92,7 +93,13 @@ Synthetic GBA tests verify pin-level rising edges without a game ROM, including
 maximum pulse rate, counter wrap, stale input, peer loss and uneven frame timing.
 The clock advances on emulated CPU time and gradually corrects its mapping to
 Link's timeline, instead of copying every frame's wall-clock jitter into pulses.
-Long pauses and phase changes reacquire the current grid without replaying a
+A scheduled pulse now retains its deadline across ordinary frame updates.
+A pulse oscillator applies phase corrections only between edges, bounded to
+400 parts per million (100 microseconds per pulse at 120 BPM / PPQ2).
+Explicit tempo changes can retime the next edge immediately. Synthetic tests
+cover larger frame jitter, small phase steps and a 120-to-150 BPM tempo change;
+these measurements are emulated pin timing, not proof of audible FMS stability.
+Long pauses and large phase changes reacquire the current grid without replaying a
 backlog. CLOCK mode still uses the ROM's START/STOP controls.
 
 The private GBA core converts all four emulated DAC rates to fixed 48 kHz stereo

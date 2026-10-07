@@ -26,7 +26,7 @@ struct ACDriver {
     double host;
     unsigned frames, pulses, relocks, expired;
     uint32_t edgeCycle;
-    double edgeTempo, intervalMin, intervalMax, errorMax;
+    double edgeTempo, scheduledTempo, intervalMin, intervalMax, errorMax, correctionMax;
     int diagnostics;
     uint32_t cycles;
     char socket_path[sizeof(((struct sockaddr_un*)0)->sun_path)];
@@ -64,10 +64,22 @@ static void rising(struct mTiming* t, void* ctx, uint32_t late) {
     a->edgeCycle = cycle; a->edgeTempo = a->clock.tempo; a->pulses++;
     uint32_t elapsed = (uint32_t)mTimingCurrentTime(t) - a->cycles;
     int64_t host = a->host + (int64_t)llround(elapsed * 1000000.0 / AC_GBA_HZ);
-    int64_t due = ac_next_pulse(&a->clock, host, a->ppqn, a->last, &a->pending);
-    int64_t delay = (int64_t)llround((due - host) * AC_GBA_HZ / 1000000.0);
-    if (delay > 0 && delay <= INT32_MAX)
-        mTimingSchedule(t, &a->rise, (int32_t)delay);
+    /* Keep a steady oscillator in emulated CPU time. Correct phase only at
+       edges, never by moving the pending edge on each video-frame wakeup.
+       At most 400 ppm (100 us per 250 ms pulse) avoids audible catch-up bursts. */
+    double period = 60000000.0 / (a->clock.tempo * a->ppqn);
+    double error = (a->last / (double)a->ppqn - ac_beat_at(&a->clock, host)) *
+        60000000.0 / a->clock.tempo;
+    double correction = error / 64.0;
+    double limit = period * 0.0004;
+    if (correction > limit) correction = limit;
+    if (correction < -limit) correction = -limit;
+    if (fabs(correction) > a->correctionMax) a->correctionMax = fabs(correction);
+    a->pending = a->last + 1;
+    a->scheduledTempo = a->clock.tempo;
+    int64_t delay = (int64_t)llround((period + correction) * AC_GBA_HZ / 1000000.0) - late;
+    if (delay < 1) delay = 1;
+    if (delay <= INT32_MAX) mTimingSchedule(t, &a->rise, (int32_t)delay);
 }
 void AudioCastClockRebase(struct mCore* c) {
     if (ac.fd < 0 || c->platform(c) != mPLATFORM_GBA) return;
@@ -94,8 +106,8 @@ void AudioCastClockReady(struct mCore* c) {
 }
 static void report(void) {
     if (!ac.diagnostics) return;
-    fprintf(stderr, "AUDIOCAST_CLOCK frames=%u pulses=%u relocks=%u expired=%u interval_us=%.1f..%.1f phase_error_max_us=%.1f\n",
-        ac.frames, ac.pulses, ac.relocks, ac.expired, ac.intervalMin, ac.intervalMax, ac.errorMax);
+    fprintf(stderr, "AUDIOCAST_CLOCK frames=%u pulses=%u relocks=%u expired=%u interval_us=%.1f..%.1f phase_error_max_us=%.1f scheduler=pulse-pll edge_correction_max_us=%.1f\n",
+        ac.frames, ac.pulses, ac.relocks, ac.expired, ac.intervalMin, ac.intervalMax, ac.errorMax, ac.correctionMax);
 }
 void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
     if (ac.fd < 0 || c->platform(c) != mPLATFORM_GBA) return;
@@ -115,10 +127,10 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
         ac.clock = s;
     }
     bool wasActive = ac.active;
-    mTimingDeschedule(&g->timing, &ac.rise);
     ac.active = ac_clock_valid(&ac.clock, now) && ac.clock.peers > 0;
     if (!ac.active) {
         if (wasActive) ac.expired++;
+        mTimingDeschedule(&g->timing, &ac.rise);
         mTimingDeschedule(&g->timing, &ac.fall); level(&ac, 0);
         ac.last = INT64_MIN; ac.edgeTempo = 0;
         return;
@@ -144,6 +156,11 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
     ac.cycles = cycles; ac.wall = now;
     ac.frames++;
     if (ac.frames % 600 == 0) report();
+    /* Retain a scheduled edge across ordinary frame/Link updates. Explicit
+       tempo changes, reconnects and discontinuities may retime it once. */
+    if (!relock && ac.pending > ac.last && ac.scheduledTempo == ac.clock.tempo) return;
+    mTimingDeschedule(&g->timing, &ac.rise);
+    ac.scheduledTempo = ac.clock.tempo;
     int64_t delay;
     if (!relock && ac.pending > ac.last) {
         /* Keep the next edge even if a tiny phase adjustment crosses its
