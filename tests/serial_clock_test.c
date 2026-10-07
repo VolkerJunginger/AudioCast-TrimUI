@@ -60,6 +60,8 @@ int main(void) {
     GBASIOWriteRCNT(&g->sio,0x8000);assert(AudioCastClockInput(c,9)==9);
     GBASIOWriteRCNT(&g->sio,0);GBASIOWriteSIOCNT(&g->sio,0x4081);
     assert(AudioCastClockInput(c,9)==9);AudioCastClockInput(c,0);
+    GBASIOWriteSIOCNT(&g->sio,0);
+    assert(AudioCastClockInput(c,9)==9);AudioCastClockInput(c,0);
     GBASIOWriteSIOCNT(&g->sio,0x4080);
     sample=(struct mTimingEvent){.context=g,.callback=sampling,.name="Serial test receiver",.priority=0x80};
     mTimingSchedule(&g->timing,&sample,1677);
@@ -70,6 +72,7 @@ int main(void) {
     uint32_t baseCycle=(uint32_t)mTimingCurrentTime(&g->timing);
     for(int f=0;f<14000;f++) {
         int64_t now=1000000+(int64_t)llround(f*frameUs);
+        if(f>180) now+=(f%2 ? 6000 : 0); /* Uneven frontend wakeups. */
         s.monotonic_us=now;
         if(f<600) s.beat=(now-1000000)*120/60000000.0;
         else {

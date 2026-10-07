@@ -41,7 +41,8 @@ static int connected(struct GBASIODriver* d) { (void)d; return ac.serial ? 1 : 0
 static bool serialTransfer(struct GBASIODriver* d) { return !(ac.serial && d->p->mode == GBA_SIO_NORMAL_8); }
 static uint16_t serialControl(struct GBASIODriver* d, uint16_t value) { (void)d; return value; }
 static int serialReceiver(struct ACDriver* a) {
-    return a->d.p && a->d.p->mode == GBA_SIO_NORMAL_8 && !(a->d.p->siocnt & 1);
+    return a->d.p && a->d.p->mode == GBA_SIO_NORMAL_8 &&
+        !(a->d.p->siocnt & 1) && (a->d.p->siocnt & 0x4000);
 }
 static int serialReady(struct ACDriver* a) {
     return serialReceiver(a) && (a->d.p->siocnt & 0x80);
