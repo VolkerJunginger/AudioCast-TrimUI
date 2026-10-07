@@ -4,6 +4,7 @@
 #include <stdint.h>
 struct mCore;
 void AudioCastClockAttach(struct mCore* core);
+uint16_t AudioCastClockInput(struct mCore* core, uint16_t keys);
 void AudioCastClockFrame(struct mCore* core);
 void AudioCastClockReady(struct mCore* core);
 void AudioCastClockFrameAt(struct mCore* core, int64_t host_us);

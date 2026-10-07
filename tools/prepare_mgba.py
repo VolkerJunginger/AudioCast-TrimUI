@@ -16,12 +16,13 @@ def git(*args):
     return subprocess.run(["git", "-C", str(a.destination), *args], check=True, capture_output=True, text=True).stdout.strip()
 if git("rev-parse", "HEAD") != SHA:
     raise SystemExit("mGBA source does not match the tested upstream commit")
-patch = root / "sync/mgba.patch"
-# Idempotent only when the exact patch is already present. Never reset a checkout.
-check = subprocess.run(["git", "-C", str(a.destination), "apply", "--reverse", "--check", str(patch)], capture_output=True)
-if check.returncode:
-    subprocess.run(["git", "-C", str(a.destination), "apply", "--check", str(patch)], check=True)
-    subprocess.run(["git", "-C", str(a.destination), "apply", str(patch)], check=True)
+# Only apply missing exact patches; never reset an existing source checkout.
+for name in ["mgba.patch", "mgba-input.patch"]:
+    patch = root / "sync" / name
+    check = subprocess.run(["git", "-C", str(a.destination), "apply", "--reverse", "--check", str(patch)], capture_output=True)
+    if check.returncode:
+        subprocess.run(["git", "-C", str(a.destination), "apply", "--check", str(patch)], check=True)
+        subprocess.run(["git", "-C", str(a.destination), "apply", str(patch)], check=True)
 target = a.destination / "src/platform/libretro/audiocast"
 target.mkdir(parents=True, exist_ok=True)
 for name in ["clock.h", "mgba-clock.h", "mgba-clock.c", "mgba-audio.h", "mgba-audio.c"]:

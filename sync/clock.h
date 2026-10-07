@@ -28,6 +28,11 @@ static inline int ac_clock_valid(const struct ACClockSnapshot* s, int64_t now) {
 static inline double ac_beat_at(const struct ACClockSnapshot* s, int64_t us) {
     return s->beat + (us - s->monotonic_us) * s->tempo / 60000000.0;
 }
+/* Link quantum boundary strictly after the requested time. Offset is applied
+   by the caller's clock mapping; Link's session timeline is never modified. */
+static inline double ac_next_bar(const struct ACClockSnapshot* s, int64_t us, int quantum) {
+    return (floor(ac_beat_at(s, us) / quantum) + 1.0) * quantum;
+}
 /* Find a future grid edge, skipping missed pulses rather than replaying them. */
 static inline int64_t ac_next_pulse(const struct ACClockSnapshot* s, int64_t us,
                                   int ppqn, int64_t last, int64_t* index) {

@@ -1,5 +1,6 @@
 # Optional virtual link cable. Casting works independently of this setting.
-# Protocols currently implemented: off, gba-clock (SC rising-edge pulses).
+# Protocols: off, gba-clock (SC pulses), fms-gba (serial START/STOP, 24 PPQN).
+# fms-gba requires PPQN=24 and FMS SYNC IN / GBA; Brick START queues beat 1.
 PROTOCOL=off
 PPQN=2
 OFFSET_US=0

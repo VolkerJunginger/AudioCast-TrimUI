@@ -21,7 +21,10 @@ struct ACDriver {
     struct GBASIODriver d;
     struct mTimingEvent rise, fall;
     struct ACClockSnapshot clock;
-    int fd, ppqn, high, active, ready, tempoLatch;
+    int fd, ppqn, high, active, ready, tempoLatch, serial;
+    int wanted, serialPlaying, startKey, quantum;
+    double startBeat;
+    unsigned starts, stops, missed;
     int64_t offset, wall, last, pending;
     double host;
     unsigned frames, pulses, relocks, expired;
@@ -33,8 +36,34 @@ struct ACDriver {
 };
 /* Libretro owns one core per process. */
 static struct ACDriver ac = {.fd = -1};
-static bool handles(struct GBASIODriver* d, enum GBASIOMode m) { (void)d; return m == GBA_SIO_GPIO; }
-static int connected(struct GBASIODriver* d) { (void)d; return 0; }
+static bool handles(struct GBASIODriver* d, enum GBASIOMode m) { (void)d; return ac.serial ? m == GBA_SIO_NORMAL_8 : m == GBA_SIO_GPIO; }
+static int connected(struct GBASIODriver* d) { (void)d; return ac.serial ? 1 : 0; }
+static bool serialTransfer(struct GBASIODriver* d) { return !(ac.serial && d->p->mode == GBA_SIO_NORMAL_8); }
+static uint16_t serialControl(struct GBASIODriver* d, uint16_t value) { (void)d; return value; }
+static int serialReceiver(struct ACDriver* a) {
+    return a->d.p && a->d.p->mode == GBA_SIO_NORMAL_8 && !(a->d.p->siocnt & 1);
+}
+static int serialReady(struct ACDriver* a) {
+    return serialReceiver(a) && (a->d.p->siocnt & 0x80);
+}
+static int serialSend(struct ACDriver* a, uint8_t message, uint32_t late) {
+    if (!serialReady(a)) { a->missed++; return 0; }
+    GBASIONormal8FinishTransfer(a->d.p, message, late);
+    return 1;
+}
+uint16_t AudioCastClockInput(struct mCore* c, uint16_t keys) {
+    if (ac.fd < 0 || !ac.serial || c->platform(c) != mPLATFORM_GBA) return keys;
+    int pressed = !!(keys & 8);
+    int receiver = serialReceiver(&ac);
+    if (receiver && pressed && !ac.startKey) {
+        ac.wanted = !ac.wanted;
+        if (!ac.wanted) ac.startBeat = NAN;
+        if (ac.diagnostics) fprintf(stderr, "AUDIOCAST_TRANSPORT request=%s quantum=%d advance_us=%lld\n",
+            ac.wanted ? "queue-next-one" : "stop", ac.quantum, (long long)ac.offset);
+    }
+    ac.startKey = pressed;
+    return receiver ? keys & ~8 : keys;
+}
 static uint16_t writeRCNT(struct GBASIODriver* d, uint16_t v) {
     struct ACDriver* a = (struct ACDriver*)d;
     if (d->p->mode == GBA_SIO_GPIO && !(v & 0x10)) v = (v & ~1) | a->high;
@@ -49,8 +78,46 @@ static void level(struct ACDriver* a, int high) {
 static void falling(struct mTiming* t, void* ctx, uint32_t late) {
     (void)t; (void)late; level(ctx, 0);
 }
+static void serialRising(struct mTiming* t, struct ACDriver* a, uint32_t late) {
+    if (!a->active || !a->wanted) return;
+    uint32_t elapsed = (uint32_t)mTimingCurrentTime(t) - a->cycles;
+    int64_t host = (int64_t)llround(a->host + elapsed * 1000000.0 / AC_GBA_HZ);
+    if (!a->serialPlaying) {
+        if (!serialSend(a, 0x02, late)) {
+            // Never start late off the one. Wait for another complete bar.
+            a->startBeat = NAN; a->pending = a->last = INT64_MIN; return;
+        }
+        a->serialPlaying = 1; a->starts++;
+        a->last = (int64_t)llround(a->startBeat * 24);
+        if (a->diagnostics) fprintf(stderr, "AUDIOCAST_TRANSPORT START beat=%.6f quantum=%d advance_us=%lld\n",
+            a->startBeat, a->quantum, (long long)a->offset);
+    } else {
+        a->last = a->pending;
+        if (!serialSend(a, 0x01, late)) { a->wanted = 0; return; }
+        uint32_t cycle = (uint32_t)mTimingCurrentTime(t) - late;
+        if (a->pulses && a->edgeTempo == a->clock.tempo) {
+            double interval = (uint32_t)(cycle - a->edgeCycle) * 1000000.0 / AC_GBA_HZ;
+            if (!a->intervalMin || interval < a->intervalMin) a->intervalMin = interval;
+            if (interval > a->intervalMax) a->intervalMax = interval;
+        }
+        a->edgeCycle = cycle; a->edgeTempo = a->clock.tempo; a->pulses++;
+    }
+    // Live phase and tempo, with bounded corrections between 24-PPQN ticks.
+    // No delayed ticks are replayed and no START is repeated during tempo edits.
+    double period = 60000000.0 / (a->clock.tempo * 24);
+    a->pending = a->last + 1;
+    double error = (a->pending / 24.0 - ac_beat_at(&a->clock, host)) * 60000000.0 / a->clock.tempo - period;
+    double correction = error / 16.0, limit = period * 0.02;
+    if (correction > limit) correction = limit;
+    if (correction < -limit) correction = -limit;
+    if (fabs(correction) > a->correctionMax) a->correctionMax = fabs(correction);
+    int64_t delay = (int64_t)llround((period + correction) * AC_GBA_HZ / 1000000.0) - late;
+    if (delay < 1) delay = 1;
+    if (delay <= INT32_MAX) mTimingSchedule(t, &a->rise, (int32_t)delay);
+}
 static void rising(struct mTiming* t, void* ctx, uint32_t late) {
     struct ACDriver* a = ctx;
+    if (a->serial) { serialRising(t, a, late); return; }
     a->last = a->pending;
     if (!a->active) return;
     level(a, 1);
@@ -86,6 +153,7 @@ void AudioCastClockRebase(struct mCore* c) {
     if (ac.fd < 0 || c->platform(c) != mPLATFORM_GBA) return;
     struct mTiming* t = &((struct GBA*)c->board)->timing;
     mTimingDeschedule(t, &ac.rise); mTimingDeschedule(t, &ac.fall);
+    ac.wanted = ac.serialPlaying = ac.startKey = 0; ac.startBeat = NAN;
     ac.last = INT64_MIN; ac.active = 0; ac.edgeTempo = 0; level(&ac, 0);
 }
 void AudioCastClockFrame(struct mCore* c) { AudioCastClockFrameAt(c, ac_monotonic_us()); }
@@ -107,8 +175,8 @@ void AudioCastClockReady(struct mCore* c) {
 }
 static void report(void) {
     if (!ac.diagnostics) return;
-    fprintf(stderr, "AUDIOCAST_CLOCK frames=%u pulses=%u relocks=%u expired=%u interval_us=%.1f..%.1f phase_error_max_us=%.1f scheduler=%s edge_correction_max_us=%.1f\n",
-        ac.frames, ac.pulses, ac.relocks, ac.expired, ac.intervalMin, ac.intervalMax, ac.errorMax, ac.tempoLatch ? "tempo-latch" : "pulse-pll", ac.correctionMax);
+    fprintf(stderr, "AUDIOCAST_CLOCK frames=%u pulses=%u relocks=%u expired=%u interval_us=%.1f..%.1f phase_error_max_us=%.1f scheduler=%s edge_correction_max_us=%.1f starts=%u stops=%u missed=%u advance_us=%lld quantum=%d\n",
+        ac.frames, ac.pulses, ac.relocks, ac.expired, ac.intervalMin, ac.intervalMax, ac.errorMax, ac.serial ? "bar-serial-24" : ac.tempoLatch ? "tempo-latch" : "pulse-pll", ac.correctionMax, ac.starts, ac.stops, ac.missed, (long long)ac.offset, ac.quantum);
 }
 void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
     if (ac.fd < 0 || c->platform(c) != mPLATFORM_GBA) return;
@@ -130,6 +198,8 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
     bool wasActive = ac.active;
     ac.active = ac_clock_valid(&ac.clock, now) && ac.clock.peers > 0;
     if (!ac.active) {
+        if (ac.serial && ac.serialPlaying && serialSend(&ac, 0x03, 0)) { ac.serialPlaying = 0; ac.stops++; }
+        if (ac.serial && wasActive) { ac.wanted = 0; ac.startBeat = NAN; }
         if (wasActive) ac.expired++;
         mTimingDeschedule(&g->timing, &ac.rise);
         mTimingDeschedule(&g->timing, &ac.fall); level(&ac, 0);
@@ -158,6 +228,39 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
     ac.cycles = cycles; ac.wall = now;
     ac.frames++;
     if (ac.frames % 600 == 0) report();
+    if (ac.serial) {
+        if (!serialReceiver(&ac)) {
+            mTimingDeschedule(&g->timing, &ac.rise);
+            ac.wanted = ac.serialPlaying = 0; ac.startBeat = NAN;
+            ac.last = ac.pending = INT64_MIN;
+            return;
+        }
+        if (!ac.wanted) {
+            mTimingDeschedule(&g->timing, &ac.rise);
+            if (ac.serialPlaying && serialSend(&ac, 0x03, 0)) { ac.serialPlaying = 0; ac.stops++; }
+            ac.last = ac.pending = INT64_MIN;
+            return;
+        }
+        if (relock && ac.serialPlaying) {
+            // A long pause or timeline jump stops rather than replaying clocks.
+            if (serialSend(&ac, 0x03, 0)) ac.stops++;
+            ac.serialPlaying = 0; ac.startBeat = NAN;
+        }
+        if (!ac.serialPlaying) {
+            int64_t host = (int64_t)llround(ac.host);
+            double beat = ac_beat_at(&ac.clock, host);
+            if (!isfinite(ac.startBeat) || ac.startBeat <= beat)
+                ac.startBeat = ac_next_bar(&ac.clock, host + 5000, ac.quantum);
+            double delta = (ac.startBeat - beat) * 60000000.0 / ac.clock.tempo;
+            int64_t delay = (int64_t)llround(delta * AC_GBA_HZ / 1000000.0);
+            mTimingDeschedule(&g->timing, &ac.rise);
+            if (delay > 0 && delay <= INT32_MAX) mTimingSchedule(&g->timing, &ac.rise, (int32_t)delay);
+        } else if (!mTimingIsScheduled(&g->timing, &ac.rise)) {
+            // No catch-up stream if the receiver stopped accepting bytes.
+            ac.wanted = 0;
+        }
+        return;
+    }
     /* Retain a scheduled edge across ordinary frame/Link updates. Explicit
        tempo changes, reconnects and discontinuities may retime it once. */
     /* In tempo-latch mode even a confirmed tempo change leaves the pending
@@ -185,20 +288,22 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
 void AudioCastClockAttach(struct mCore* c) {
     memset(&ac, 0, sizeof(ac)); ac.fd = -1;
     const char* protocol = getenv("AUDIOCAST_LINK_PROTOCOL");
-    if (protocol && strcmp(protocol, "gba-clock")) return;
+    ac.serial = protocol && !strcmp(protocol, "fms-gba");
+    if (protocol && strcmp(protocol, "gba-clock") && !ac.serial) return;
+    ac.quantum = 4; ac.startBeat = NAN;
     const char* path = getenv("AUDIOCAST_CLOCK_SOCKET");
     if (!path || c->platform(c) != mPLATFORM_GBA || strlen(path) >= sizeof(ac.socket_path)) return;
     const char* p = getenv("AUDIOCAST_PPQN");
-    ac.ppqn = p ? atoi(p) : 2;
+    ac.ppqn = ac.serial ? 24 : p ? atoi(p) : 2;
     /* Clock-only prototype: <= 12 PPQN leaves enough low time per frame. */
-    if (ac.ppqn != 1 && ac.ppqn != 2 && ac.ppqn != 4 && ac.ppqn != 8 && ac.ppqn != 12) return;
+    if (!ac.serial && ac.ppqn != 1 && ac.ppqn != 2 && ac.ppqn != 4 && ac.ppqn != 8 && ac.ppqn != 12) return;
     const char* offset = getenv("AUDIOCAST_OFFSET_US");
     char* end = NULL;
     ac.offset = offset ? strtoll(offset, &end, 10) : 0;
     if (offset && (!*offset || !end || *end)) return;
     if (ac.offset < -250000 || ac.offset > 250000) return;
     const char* mode = getenv("AUDIOCAST_CLOCK_MODE");
-    ac.tempoLatch = mode && !strcmp(mode, "tempo-latch");
+    ac.tempoLatch = !ac.serial && mode && !strcmp(mode, "tempo-latch");
     ac.fd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (ac.fd < 0) return;
     fcntl(ac.fd, F_SETFL, O_NONBLOCK); fcntl(ac.fd, F_SETFD, FD_CLOEXEC);
@@ -209,6 +314,7 @@ void AudioCastClockAttach(struct mCore* c) {
     strcpy(ac.socket_path, path); ac.last = INT64_MIN;
     const char* diagnostics = getenv("AUDIOCAST_CLOCK_DIAGNOSTICS");
     ac.diagnostics = diagnostics && !strcmp(diagnostics, "1");
+    ac.d.start = serialTransfer; ac.d.writeSIOCNT = serialControl;
     ac.d.handlesMode = handles; ac.d.connectedDevices = connected; ac.d.writeRCNT = writeRCNT;
     ac.rise = (struct mTimingEvent){.context=&ac, .callback=rising, .name="AudioCast SC rise", .priority=0x70};
     ac.fall = (struct mTimingEvent){.context=&ac, .callback=falling, .name="AudioCast SC fall", .priority=0x70};
@@ -216,6 +322,7 @@ void AudioCastClockAttach(struct mCore* c) {
 }
 void AudioCastClockDetach(struct mCore* c) {
     if (ac.fd < 0) return;
+    if (ac.serial && ac.serialPlaying) serialSend(&ac, 0x03, 0);
     report();
     AudioCastClockRebase(c); c->setPeripheral(c, mPERIPH_GBA_LINK_PORT, NULL);
     close(ac.fd); ac.fd = -1; unlink(ac.socket_path);

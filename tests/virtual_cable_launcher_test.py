@@ -41,12 +41,14 @@ if core.endswith('mgba-link_libretro.so'):
     assert len(calls)==1 and calls[0]['args'][-3:]==['-L',str(app/'cores/mgba-link_libretro.so'),'Unrelated music program.gba']
     assert 'video_threaded = "false"' in calls[0]['config'] and 'libretro_log_level = "2"' in calls[0]['config']
     assert calls[0]['clock']==str(runtime/'clock.sock') and calls[0]['protocol']=='gba-clock'
+    calls=run('PROTOCOL=fms-gba\nPPQN=24\nOFFSET_US=0\n',SIM_READY='1')
+    assert len(calls)==1 and calls[0]['protocol']=='fms-gba' and calls[0]['clock']==str(runtime/'clock.sock')
     # Failures before any frame must fall back, including frontend exit code 0.
     for code in ['0','1','139']:
         calls=run(active,PRIVATE_RESULT=code)
         assert calls[1]['config']=='audio_device = "ac_game"\nconfig_save_on_exit = "false"\n'
         assert len(calls)==2 and calls[1]['args'][-3:]==['-L',stock,'Unrelated music program.gba'] and calls[1]['clock'] is None
-    for settings in ['PROTOCOL=gb-serial\n','PROTOCOL=$(touch attacked)\n','PROTOCOL=gba-clock\nPPQN=24\n','PROTOCOL=gba-clock\nOFFSET_US=999999999999999999999\n']:
+    for settings in ['PROTOCOL=gb-serial\n','PROTOCOL=$(touch attacked)\n','PROTOCOL=gba-clock\nPPQN=24\n','PROTOCOL=fms-gba\nPPQN=2\n','PROTOCOL=gba-clock\nOFFSET_US=999999999999999999999\n']:
         calls=run(settings);assert len(calls)==1 and calls[0]['clock'] is None and calls[0]['args'][-2]==stock
     calls=run(active,PROBE_RESULT='3');assert len(calls)==1 and calls[0]['clock'] is None
     other=str(sd/'RetroArch/.retroarch/cores/gpsp_libretro.so')

@@ -4,13 +4,13 @@ The intended workflow is **AudioCast ON → open a ROM from its normal game list
 select external sync in that program**. AudioCast supplies the virtual cable in
 the emulator. No app launches FMS or another music program on the user's behalf.
 
-FMS receives clock pulses through the normal GBA launcher on the Hammer.
-The latest device test reports stable audio and improved latency, but beat-to-beat
-clock timing remains uneven. The current diagnostic patch retains the working
-64 ms audio buffer and temporary CPU performance policy. The two-second tempo
-sampling mode is disabled. The next diagnostic tests a change-triggered tempo
-latch with a steady CPU-cycle clock and zero ongoing phase correction.
-This remains a hardware test build, not a stable sync release.
+The latest diagnostic tests FMS's native GBA serial protocol: a 24-PPQN clock
+with explicit START and STOP. Brick START queues the next four-beat Link boundary;
+a second press cancels a queued start or stops playback. Live tempo changes update
+the tick period without repeating START. The previous change-triggered tempo
+latch is disabled in this test. Timing offset is zero; delay compensation is
+outside this iteration. The working 64 ms audio buffer and temporary CPU policy
+are preserved. This remains a hardware test build, not a stable sync release.
 
 ## Signal path and supported protocol
 
@@ -24,9 +24,28 @@ stale clock data. It contains no FMS ROM-name check or FMS RAM patch. Programs
 using this same pin/edge convention can consume the signal; their pulse resolution
 must match `PPQN`.
 
-For FMS, select **SYNC IN / CLOCK / PPQ2** and use START for transport. This first
-backend does not implement GBA-to-GBA serial handshakes, MIDI, or Link Play/Stop.
-FMS's several cable protocols are distinct: [FMS external-sync guide](https://lo-bit.club/fms/guide#ext-sync).
+The new **`fms-gba`** backend completes external-clock, normal 8-bit serial
+transfers in the emulated GBA link port. FMS defines a 24-PPQN TICK byte (`0x01`),
+START (`0x02`) and STOP (`0x03`): [FMS developer protocol](https://github.com/ess-m/fms-docs/blob/main/sync.md).
+Select **SYNC IN / GBA** in FMS. The GBA protocol fixes its pulse rate at 24 PPQN;
+the CLOCK/PPQ setting belongs to the separate GPIO mode. This is FMS's GBA serial
+protocol, not MIDI, and does not implement every serial cable protocol.
+
+In this mode, Brick START is intercepted only while the program selects normal
+8-bit external serial input. It requests a sequence start on the next multiple
+of four Link beats. That serial START supplies the sequence reset that GPIO
+pulses alone cannot express. The deadline follows tempo changes while queued.
+Once playing, tick deadlines advance on emulated CPU cycles; new live tempo and
+bounded phase corrections apply between ticks. Ordinary frame wakeups do not
+reschedule a pending tick. No backlog is replayed after pauses or missing data.
+Peer loss or stale data sends STOP where the receiver is ready, and rejoining
+requires another Brick START. Link Play/Stop does not control this transport.
+Four-beat phase alignment follows Link's [quantized launching model](https://ableton.github.io/link/).
+
+`gba-clock` remains available for GPIO receivers: select **SYNC IN / CLOCK /
+PPQ2** in FMS and use its normal START control. It carries tempo pulses without
+an explicit sequence/bar reset. Neither mode implements standard MIDI messages.
+FMS's cable modes are distinct: [FMS external-sync guide](https://lo-bit.club/fms/guide#ext-sync).
 
 Game Boy serial-link input, including DMGo's LINK IN, needs a separate bit/byte
 adapter and protocol validation. The GBA GPIO clock adapter is not a universal
@@ -39,6 +58,14 @@ Game Boy cable: [DMGo description](https://audiowanderer.com/AW/youtube/dmgo-is-
 ```
 PROTOCOL=gba-clock
 PPQN=2
+OFFSET_US=0
+```
+
+For the serial transport diagnostic use:
+
+```
+PROTOCOL=fms-gba
+PPQN=24
 OFFSET_US=0
 ```
 
@@ -90,6 +117,14 @@ action restores the original launcher bytes using the existing checksum manifest
 
 ## Evidence
 
+A separate synthetic serial receiver verifies the actual received bytes: START
+on beat 4 at zero offset, no ticks before START, 24-PPQN timing at 120 BPM,
+a live change to 150 BPM without another START, cancellation, STOP, peer loss,
+stale data and 32-bit CPU counter wrap. START routing passes through unchanged
+outside external serial receive mode. These are emulator transport tests;
+they do not measure audible alignment or Push playback latency.
+
+
 Synthetic GBA tests verify pin-level rising edges without a game ROM, including
 maximum pulse rate, counter wrap, stale input, peer loss and uneven frame timing.
 The clock advances on emulated CPU time and gradually corrects its mapping to
@@ -139,7 +174,7 @@ input and checks non-silent audio through a tempo change. Timing diagnostics in
 the requested device log report timestamp lag, input gaps and recovery counts.
 Brick/Push performance still requires hardware validation.
 
-## Two-second tempo sampling test
+## Historical two-second tempo sampling experiment (disabled)
 
 Set `AUDIOCAST_CLOCK_REFRESH_MS=2000` to opt into a local clock. At first peer
 connection it aligns with Link's beat, then advances continuously using that
@@ -163,7 +198,7 @@ beat continuity, TTL, disconnect and rejoin. Native two-peer tests verify tempo
 changes and sparse fresh heartbeats while idle and during actual Link Audio
 streaming. Push dropout recovery still requires a hardware test.
 
-## Change-triggered tempo latch test
+## Historical change-triggered tempo latch experiment (disabled)
 
 `AUDIOCAST_CLOCK_MODE=tempo-latch` opts into a tempo-only local clock in both
 sender and private core. On peer connection it takes Link's tempo and initial
