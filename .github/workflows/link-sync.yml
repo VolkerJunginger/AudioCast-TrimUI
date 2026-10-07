@@ -1,7 +1,7 @@
 name: Experimental Virtual Link Cable
 on:
   pull_request:
-    paths: ['sync/**', 'tests/**', 'src/sender.cpp', 'src/pcm_timeline.h', 'src/tempo_hold.h', 'src/core_probe.cpp', 'CMakeLists.txt', 'tools/*sync*', 'tools/*mgba*', 'tools/build_probe.py', 'tools/package_virtual_cable.py', 'Apps/AudioCast/**', 'docs/VIRTUAL_LINK_CABLE.md', '.github/workflows/link-sync.yml']
+    paths: ['sync/**', 'tests/**', 'src/sender.cpp', 'src/pcm_timeline.h', 'src/tempo_hold.h', 'src/core_probe.cpp', 'CMakeLists.txt', 'tools/*sync*', 'tools/*mgba*', 'tools/build_probe.py', 'tools/prepare_link.py', 'tools/package_virtual_cable.py', 'Apps/AudioCast/**', 'docs/VIRTUAL_LINK_CABLE.md', '.github/workflows/link-sync.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,6 +25,7 @@ jobs:
           git clone https://github.com/Ableton/link.git link
           git -C link checkout 902aef95bf94af49746fdda5369b42cdcfa1e6d2
           git -C link submodule update --init --recursive
+          python3 tools/prepare_link.py link
           cmake -S . -B host-build -DLINK_DIR="$PWD/link" -DAUDIOCAST_CLOCK_TESTS=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build host-build -j2
           python3 tests/sender_clock_test.py host-build
@@ -55,6 +56,7 @@ jobs:
           git clone https://github.com/Ableton/link.git link
           git -C link checkout 902aef95bf94af49746fdda5369b42cdcfa1e6d2
           git -C link submodule update --init --recursive
+          python3 tools/prepare_link.py link
           python3 tools/prepare_mgba.py mgba
       - name: Build ARM64 sender and isolated core
         run: |

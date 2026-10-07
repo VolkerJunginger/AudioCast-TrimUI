@@ -144,7 +144,9 @@ The sender publishes small local socket heartbeats every 100 ms with extrapolate
 beat positions. Those fresh heartbeats keep the existing core's 500 ms stale-clock
 protection active. They do not fetch Link's session state each time. The emulator
 core and its playback pacing are unchanged. The sender is built in Release mode
-for this diagnostic iteration.
+for this diagnostic iteration. `tools/prepare_link.py link` initializes unused
+SDK buffer placeholder metadata before optimized constructor copies; normal
+commits still supply the actual packet fields. CI retains strict warnings.
 
 This reduces local clock processing and IPC, not audio bandwidth. Stereo S16 PCM
 still streams continuously at 48 kHz. The mode is optional; without the variable
