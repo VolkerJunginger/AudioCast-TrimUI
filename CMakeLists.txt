@@ -21,4 +21,6 @@ option(AUDIOCAST_CLOCK_TESTS "Build the local Link clock integration-test peer" 
 if(AUDIOCAST_CLOCK_TESTS)
   add_executable(link-clock-peer tests/link_peer.cpp)
   target_link_libraries(link-clock-peer Ableton::Link)
+  add_executable(link-audio-peer tests/link_audio_peer.cpp)
+  target_link_libraries(link-audio-peer Ableton::Link)
 endif()

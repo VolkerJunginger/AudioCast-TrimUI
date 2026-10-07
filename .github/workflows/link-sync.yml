@@ -1,7 +1,7 @@
 name: Experimental Virtual Link Cable
 on:
   pull_request:
-    paths: ['sync/**', 'tests/**', 'src/sender.cpp', 'src/core_probe.cpp', 'CMakeLists.txt', 'tools/*sync*', 'tools/*mgba*', 'tools/build_probe.py', 'tools/package_virtual_cable.py', 'Apps/AudioCast/**', 'docs/VIRTUAL_LINK_CABLE.md', '.github/workflows/link-sync.yml']
+    paths: ['sync/**', 'tests/**', 'src/sender.cpp', 'src/pcm_timeline.h', 'src/core_probe.cpp', 'CMakeLists.txt', 'tools/*sync*', 'tools/*mgba*', 'tools/build_probe.py', 'tools/package_virtual_cable.py', 'Apps/AudioCast/**', 'docs/VIRTUAL_LINK_CABLE.md', '.github/workflows/link-sync.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -14,6 +14,8 @@ jobs:
         run: |
           cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror tests/clock_test.c -lm -o clock-test
           ./clock-test
+          c++ -std=c++17 -Wall -Wextra -Werror tests/pcm_timeline_test.cpp -o pcm-timeline-test
+          ./pcm-timeline-test
           for script in Apps/AudioCast/*.sh Apps/AudioCast/cable/*.sh; do sh -n "$script"; done
           python3 tests/virtual_cable_launcher_test.py
       - name: Test the real sender clock bridge with a second Link participant
@@ -24,6 +26,7 @@ jobs:
           cmake -S . -B host-build -DLINK_DIR="$PWD/link" -DAUDIOCAST_CLOCK_TESTS=ON
           cmake --build host-build -j2
           python3 tests/sender_clock_test.py host-build
+          python3 tests/sender_audio_test.py host-build
       - name: Build pinned mGBA and private probe (no ROM included)
         run: |
           python3 tools/prepare_mgba.py mgba

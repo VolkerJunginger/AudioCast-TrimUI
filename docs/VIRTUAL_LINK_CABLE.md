@@ -110,3 +110,22 @@ Normal-launcher tests verify selection, configuration and fallback.
 Private FMS tests use the user's local ROM and BIOS; neither is distributed.
 Device audio, audible clock stability and latency require the next Hammer test.
 DMGo is not implemented yet.
+
+The sender supports an opt-in diagnostic recovery test using
+`AUDIOCAST_AUDIO_RECOVERY=1` and `AUDIOCAST_AUDIO_DIAGNOSTICS=1`. The ordinary
+sender mode remains the default. Repeated short PCM pauses can leave a sample
+counter's timestamps increasingly in the past despite successful audio commits.
+Recovery reacquires current time when audio is more than 64 ms late. Its commits
+align with the pinned Link encoder's 125-frame stereo PCM packet, so the encoder
+does not extend cached old time across the recovery. Audio remains S16 stereo at
+48 kHz; neither PCM samples nor the Link participant, channel identity, tempo or
+virtual cable are changed. The clock's working playback settings are preserved
+by the separate diagnostic installer. This does not replace missing PCM or
+prove Wi-Fi delivery to Push.
+
+Deterministic timeline tests cover exact sample continuity, slow sources,
+repeated short stalls, long pauses and disconnected sinks. A real Link Audio
+receiver compares legacy and recovery timestamps under delayed, fragmented PCM
+input and checks non-silent audio through a tempo change. Timing diagnostics in
+the requested device log report timestamp lag, input gaps and recovery counts.
+Brick/Push performance still requires hardware validation.
