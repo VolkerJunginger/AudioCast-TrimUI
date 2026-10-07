@@ -2,7 +2,8 @@
 #include <ableton/Link.hpp>
 #include <chrono>
 #include <thread>
-int main() {
+#include <cstdlib>
+int main(int argc,char** argv) {
   ableton::Link link(120);
   link.enable(true);
   for (int i = 0; i < 200; ++i) {
@@ -11,7 +12,7 @@ int main() {
         auto state = link.captureAppSessionState();
         state.setTempo(tempo, link.clock().micros());
         link.commitAppSessionState(state);
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(std::chrono::milliseconds(argc>1?std::atoi(argv[1]):2000));
       }
       return 0;
     }

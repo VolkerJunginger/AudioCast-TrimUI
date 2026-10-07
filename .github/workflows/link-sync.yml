@@ -1,7 +1,7 @@
 name: Experimental Virtual Link Cable
 on:
   pull_request:
-    paths: ['sync/**', 'tests/**', 'src/sender.cpp', 'src/pcm_timeline.h', 'src/core_probe.cpp', 'CMakeLists.txt', 'tools/*sync*', 'tools/*mgba*', 'tools/build_probe.py', 'tools/package_virtual_cable.py', 'Apps/AudioCast/**', 'docs/VIRTUAL_LINK_CABLE.md', '.github/workflows/link-sync.yml']
+    paths: ['sync/**', 'tests/**', 'src/sender.cpp', 'src/pcm_timeline.h', 'src/tempo_hold.h', 'src/core_probe.cpp', 'CMakeLists.txt', 'tools/*sync*', 'tools/*mgba*', 'tools/build_probe.py', 'tools/package_virtual_cable.py', 'Apps/AudioCast/**', 'docs/VIRTUAL_LINK_CABLE.md', '.github/workflows/link-sync.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,6 +16,8 @@ jobs:
           ./clock-test
           c++ -std=c++17 -Wall -Wextra -Werror tests/pcm_timeline_test.cpp -o pcm-timeline-test
           ./pcm-timeline-test
+          c++ -std=c++17 -Wall -Wextra -Werror tests/tempo_hold_test.cpp -o tempo-hold-test
+          ./tempo-hold-test
           for script in Apps/AudioCast/*.sh Apps/AudioCast/cable/*.sh; do sh -n "$script"; done
           python3 tests/virtual_cable_launcher_test.py
       - name: Test the real sender clock bridge with a second Link participant
@@ -23,9 +25,10 @@ jobs:
           git clone https://github.com/Ableton/link.git link
           git -C link checkout 902aef95bf94af49746fdda5369b42cdcfa1e6d2
           git -C link submodule update --init --recursive
-          cmake -S . -B host-build -DLINK_DIR="$PWD/link" -DAUDIOCAST_CLOCK_TESTS=ON
+          cmake -S . -B host-build -DLINK_DIR="$PWD/link" -DAUDIOCAST_CLOCK_TESTS=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build host-build -j2
           python3 tests/sender_clock_test.py host-build
+          python3 tests/sender_clock_test.py host-build --tempo-hold
           python3 tests/sender_audio_test.py host-build
       - name: Build pinned mGBA and private probe (no ROM included)
         run: |
@@ -55,7 +58,7 @@ jobs:
           python3 tools/prepare_mgba.py mgba
       - name: Build ARM64 sender and isolated core
         run: |
-          cmake -S . -B build -DLINK_DIR="$PWD/link" \
+          cmake -S . -B build -DLINK_DIR="$PWD/link" -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-g++
           cmake --build build -j2
           cmake -S mgba -B mgba-build -C sync/mgba-options.cmake \

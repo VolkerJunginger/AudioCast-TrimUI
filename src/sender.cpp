@@ -15,6 +15,7 @@
 #include <cstring>
 #include <chrono>
 #include "pcm_timeline.h"
+#include "tempo_hold.h"
 static volatile sig_atomic_t running = 1;
 static void stop(int) { running = 0; }
 int main() {
@@ -58,6 +59,10 @@ int main() {
   const size_t inputBytes=blockFrames*2*sizeof(int16_t);
   PcmTimeline timeline(recovery,static_cast<uint32_t>(blockFrames));
   const bool timingDiagnostics=diagnosticSetting && std::strcmp(diagnosticSetting,"1")==0;
+  const char* refreshSetting=std::getenv("AUDIOCAST_CLOCK_REFRESH_MS");
+  const bool holdTempo=refreshSetting && std::strcmp(refreshSetting,"2000")==0;
+  TempoHold heldClock;
+  uint64_t clockDelivered=0;
   auto report = [&]() {
     std::printf("stats: fifo_buffers=%llu committed=%llu no_buffer=%llu commit_rejected=%llu peak=%u\n",
       (unsigned long long)received, (unsigned long long)committed,
@@ -69,10 +74,30 @@ int main() {
         (long long)timeline.lagMin,(long long)timeline.lagMax,(long long)timeline.gapMax,
         (unsigned long long)timeline.recoveries,(unsigned long long)timeline.longGaps,link.numPeers());
       timeline.reported();
+      if (holdTempo && clockFd>=0)
+        std::printf("clock_source: mode=tempo-hold refresh_ms=2000 heartbeat_ms=100 samples=%llu snapshots=%llu delivered=%llu tempo=%.3f peers=%zu\n",
+          (unsigned long long)heldClock.samples,(unsigned long long)heldClock.snapshots,
+          (unsigned long long)clockDelivered,heldClock.anchor.tempo,link.numPeers());
     }
   };
   while (running) {
-    if (clockFd >= 0) {
+    if (clockFd >= 0 && holdTempo) {
+      const auto now=ac_monotonic_us();
+      const auto peers=static_cast<uint32_t>(link.numPeers());
+      if (heldClock.publishDue(now,peers)) {
+        if (heldClock.sampleDue(now,peers)) {
+          auto state=link.captureAppSessionState();
+          const auto linkNow=link.clock().micros();
+          heldClock.sample(now,state.beatAtTime(linkNow,4.0),state.tempo(),peers,state.isPlaying()?1U:0U);
+        }
+        const auto snapshot=heldClock.publish(now,peers);
+        // The 100 ms heartbeat keeps the existing core's 500 ms TTL valid.
+        // Only the source tempo is sampled every two seconds; pulses stay local.
+        if (sendto(clockFd,&snapshot,sizeof(snapshot),0,
+          reinterpret_cast<const sockaddr*>(&clockAddress),sizeof(clockAddress))==sizeof(snapshot))
+          ++clockDelivered;
+      }
+    } else if (clockFd >= 0) {
       auto state = link.captureAppSessionState();
       auto linkNow = link.clock().micros();
       ACClockSnapshot snapshot{AC_CLOCK_MAGIC, AC_CLOCK_VERSION,

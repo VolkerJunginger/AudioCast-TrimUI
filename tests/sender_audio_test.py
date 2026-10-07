@@ -1,5 +1,5 @@
 """Receive actual Link Audio and exercise delayed PCM without >250 ms gaps."""
-import argparse,math,os,struct,subprocess,tempfile,time
+import argparse,math,os,struct,subprocess,tempfile,time,socket,threading
 from pathlib import Path
 
 p=argparse.ArgumentParser();p.add_argument('build',type=Path);args=p.parse_args()
@@ -8,9 +8,19 @@ def clock():return time.clock_gettime(time.CLOCK_MONOTONIC)
 
 def run(directory,name,recovery,slow):
     received=directory/(name+'-received.txt');sent=directory/(name+'-sent.txt')
+    clock_path=str(directory/(name+'.sock'))
+    clock_sock=socket.socket(socket.AF_UNIX,socket.SOCK_DGRAM)
+    clock_sock.bind(clock_path);clock_sock.settimeout(.1)
+    clock_packets=[];clock_stop=threading.Event()
+    def drain_clock():
+        while not clock_stop.is_set():
+            try:packet=clock_sock.recv(100)
+            except socket.timeout:continue
+            clock_packets.append((struct.unpack('=IIqddII',packet),clock()*1e6))
+    reader=threading.Thread(target=drain_clock);reader.start()
     with received.open('w') as rx,sent.open('w') as tx:
         sender=subprocess.Popen([str(build/'linkaudio-send')],stdin=subprocess.PIPE,stdout=tx,stderr=tx,
-            env=dict(os.environ,AUDIOCAST_AUDIO_RECOVERY=str(int(recovery)),AUDIOCAST_AUDIO_DIAGNOSTICS='1'))
+            env=dict(os.environ,AUDIOCAST_AUDIO_RECOVERY=str(int(recovery)),AUDIOCAST_AUDIO_DIAGNOSTICS='1',AUDIOCAST_CLOCK_SOCKET=clock_path,AUDIOCAST_CLOCK_REFRESH_MS='2000'))
         peer=subprocess.Popen([str(build/'link-audio-peer')]+(['8'] if slow else []),stdout=rx,stderr=rx)
         try:
             target=clock();deadline=target+55;frames=0;ready=False
@@ -32,6 +42,12 @@ def run(directory,name,recovery,slow):
         finally:
             for child in [sender,peer]:
                 if child.poll() is None:child.terminate();child.wait(timeout=5)
+            clock_stop.set();reader.join(timeout=2);clock_sock.close()
+    assert not reader.is_alive() and len(clock_packets)>20
+    assert all(0<=arrival-packet[2]<500000 for packet,arrival in clock_packets)
+    span=clock_packets[-1][0][2]-clock_packets[0][0][2]
+    assert len(clock_packets)*100000<span*1.5
+    assert any(packet[5]>0 for packet,arrival in clock_packets)
     rows=[];measured=False
     for line in received.read_text().splitlines():
         if line=='READY':measured=True
@@ -51,7 +67,7 @@ def run(directory,name,recovery,slow):
                 for a,b in zip(rows,rows[1:]) if a['tempo']==b['tempo']]
         assert max(abs(e) for e in errors)<100, (min(errors),max(errors))
         assert age<500000,age
-    print('%s: received=%d max_timestamp_age_us=%d'%(name,len(rows),age))
+    print('%s: received=%d max_timestamp_age_us=%d clock_heartbeats=%d'%(name,len(rows),age,len(clock_packets)))
     return age
 
 with tempfile.TemporaryDirectory(prefix='ac-link-audio-') as directory:

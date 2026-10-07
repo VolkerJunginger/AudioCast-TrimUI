@@ -5,8 +5,9 @@ select external sync in that program**. AudioCast supplies the virtual cable in
 the emulator. No app launches FMS or another music program on the user's behalf.
 
 FMS now receives clock pulses through the normal GBA launcher on the Hammer.
-The latest device test still reported unusable jitter and silent audio. This
-revision addresses the observed audio initialization failure and frame jitter;
+The latest device test reports acceptable clock timing but audio on Push can
+become silent until a restart. Successful local commits do not confirm remote
+playback. The next diagnostic iteration reduces clock work;
 it remains a hardware test build, not a stable sync release.
 
 ## Signal path and supported protocol
@@ -129,3 +130,25 @@ receiver compares legacy and recovery timestamps under delayed, fragmented PCM
 input and checks non-silent audio through a tempo change. Timing diagnostics in
 the requested device log report timestamp lag, input gaps and recovery counts.
 Brick/Push performance still requires hardware validation.
+
+## Two-second tempo sampling test
+
+Set `AUDIOCAST_CLOCK_REFRESH_MS=2000` to opt into a local clock. At first peer
+connection it aligns with Link's beat, then advances continuously using that
+initial tempo. Every two seconds it samples Link's tempo and updates the local
+rate without jumping its beat position. A peer disconnect stops external clock;
+a new connection aligns again. Tempo changes can take up to two seconds to arrive.
+This mode follows tempo; it does not continuously correct phase to Link's grid.
+
+The sender publishes small local socket heartbeats every 100 ms with extrapolated
+beat positions. Those fresh heartbeats keep the existing core's 500 ms stale-clock
+protection active. They do not fetch Link's session state each time. The emulator
+core and its playback pacing are unchanged. The sender is built in Release mode
+for this diagnostic iteration.
+
+This reduces local clock processing and IPC, not audio bandwidth. Stereo S16 PCM
+still streams continuously at 48 kHz. The mode is optional; without the variable
+the existing clock behavior is preserved. Deterministic tests cover sampling,
+beat continuity, TTL, disconnect and rejoin. Native two-peer tests verify tempo
+changes and sparse fresh heartbeats while idle and during actual Link Audio
+streaming. Push dropout recovery still requires a hardware test.
