@@ -4,11 +4,10 @@ The intended workflow is **AudioCast ON → open a ROM from its normal game list
 select external sync in that program**. AudioCast supplies the virtual cable in
 the emulator. No app launches FMS or another music program on the user's behalf.
 
-The standalone FMS Sync and Launch Test apps failed to open FMS on the tested
-Hammer. Normal FMS playback and AudioCast casting still work. Their failure is
-not yet diagnosed on the device; successful host tests do not establish that the
-private core runs on StockUI. Those apps are not the intended interface and are
-not included in the integrated virtual-cable package.
+FMS now receives clock pulses through the normal GBA launcher on the Hammer.
+The latest device test still reported unusable jitter and silent audio. This
+revision addresses the observed audio initialization failure and frame jitter;
+it remains a hardware test build, not a stable sync release.
 
 ## Signal path and supported protocol
 
@@ -61,7 +60,9 @@ library check or a visible AudioCast ON icon does not prove that sync is active.
 
 Battery saves retain the normal game's path. Private-core save states go under
 `Apps/AudioCast/cable/states`; old auto-loaded states are disabled for this mode.
-No diagnostic log is created. ALSA/configuration/socket/handshake files live under
+The preview itself creates no diagnostic log. The separate reversible diagnostic
+patch requested for device testing records the normal game launch at the SD-card
+root as `AudioCast-Link-Sync-test.log`. ALSA/configuration/socket/handshake files live under
 the existing process-owned `/tmp/audiocast-v0.2b` session and are cleaned up when it
 ends. Nothing changes `/etc/asound.conf`, firmware, RetroArch's binary or minarch.
 
@@ -86,9 +87,26 @@ action restores the original launcher bytes using the existing checksum manifest
 
 ## Evidence
 
-Synthetic GBA tests verify pin-level rising edges without any FMS ROM, including
-maximum pulse rate, counter wrap and stale-input behavior. Normal-launcher tests
-verify core-based selection, numeric configuration, unchanged unrelated emulators
-and fallback before a first frame. A private FMS 1.31 host test verifies actual
-sequencer tick increments. Hardware Link synchronization and the earlier startup
-failure remain unverified. DMGo is not implemented yet.
+Synthetic GBA tests verify pin-level rising edges without a game ROM, including
+maximum pulse rate, counter wrap, stale input, peer loss and uneven frame timing.
+The clock advances on emulated CPU time and gradually corrects its mapping to
+Link's timeline, instead of copying every frame's wall-clock jitter into pulses.
+Long pauses and phase changes reacquire the current grid without replaying a
+backlog. CLOCK mode still uses the ROM's START/STOP controls.
+
+The private GBA core converts all four emulated DAC rates to fixed 48 kHz stereo
+using mGBA's sinc resampler. It avoids frontend AV/audio reinitialization during
+load or SOUNDBIAS changes; the device log showed those reopens losing the exclusive
+speaker with `Device or resource busy`. The temporary ALSA hardware tee remains
+the same. There is no dmix dependency or global ALSA configuration change.
+Private video uses synchronous rendering because the device's threaded GL path
+failed before the first frame. Core logging suppresses the DMA informational
+flood. Both settings are restored on fallback to the installed core.
+
+Generated sine tests verify sample count, pitch and stereo across 32768, 65536,
+131072 and 262144 Hz DAC rates. Libretro lifecycle tests check fixed-rate audio
+and no AV reopen during load/reset/run, including ARM64 execution in CI.
+Normal-launcher tests verify selection, configuration and fallback.
+Private FMS tests use the user's local ROM and BIOS; neither is distributed.
+Device audio, audible clock stability and latency require the next Hammer test.
+DMGo is not implemented yet.

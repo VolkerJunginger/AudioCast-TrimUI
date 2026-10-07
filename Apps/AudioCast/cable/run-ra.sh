@@ -18,10 +18,11 @@ while [ "$remaining" -gt 0 ]; do
   fi
 done
 if [ "$selected" = 0 ]; then
-  unset AUDIOCAST_CLOCK_SOCKET AUDIOCAST_PPQN AUDIOCAST_OFFSET_US AUDIOCAST_LINK_PROTOCOL AUDIOCAST_CABLE_ACTIVE
+  unset AUDIOCAST_CLOCK_SOCKET AUDIOCAST_PPQN AUDIOCAST_OFFSET_US AUDIOCAST_LINK_PROTOCOL AUDIOCAST_CABLE_ACTIVE AUDIOCAST_CLOCK_DIAGNOSTICS
   exec "$AC_SD/RetroArch/ra64.trimui" --config "$AC_RUN/ra.cfg" --appendconfig "$AC_RUN/override.cfg" "$@"
 fi
 mkdir -p "$AC_APP/cable/states" || exit 1
+ac_before_private_override=$(cat "$AC_RUN/override.cfg") || exit 1
 cat >> "$AC_RUN/override.cfg" <<CFG
 savestate_directory = "$AC_APP/cable/states"
 savestate_auto_load = "false"
@@ -31,6 +32,8 @@ rewind_enable = "false"
 run_ahead_enabled = "false"
 preemptive_frames_enable = "false"
 fastforward_ratio = "1.0"
+video_threaded = "false"
+libretro_log_level = "2"
 CFG
 "$AC_SD/RetroArch/ra64.trimui" --config "$AC_RUN/ra.cfg" --appendconfig "$AC_RUN/override.cfg" "$@"
 result=$?
@@ -46,7 +49,8 @@ if [ ! -f "$AC_RUN/clock.sock.ready" ]; then
       set -- "$@" -L "$core"
     else set -- "$@" "$argument"; fi
   done
-  unset AUDIOCAST_CLOCK_SOCKET AUDIOCAST_PPQN AUDIOCAST_OFFSET_US AUDIOCAST_LINK_PROTOCOL AUDIOCAST_CABLE_ACTIVE
+  printf '%s\n' "$ac_before_private_override" > "$AC_RUN/override.cfg" || exit 1
+  unset AUDIOCAST_CLOCK_SOCKET AUDIOCAST_PPQN AUDIOCAST_OFFSET_US AUDIOCAST_LINK_PROTOCOL AUDIOCAST_CABLE_ACTIVE AUDIOCAST_CLOCK_DIAGNOSTICS
   exec "$AC_SD/RetroArch/ra64.trimui" --config "$AC_RUN/ra.cfg" --appendconfig "$AC_RUN/override.cfg" "$@"
 fi
 exit "$result"

@@ -22,7 +22,12 @@ struct ACDriver {
     struct mTimingEvent rise, fall;
     struct ACClockSnapshot clock;
     int fd, ppqn, high, active, ready;
-    int64_t offset, host, last, pending;
+    int64_t offset, wall, last, pending;
+    double host;
+    unsigned frames, pulses, relocks, expired;
+    uint32_t edgeCycle;
+    double edgeTempo, intervalMin, intervalMax, errorMax;
+    int diagnostics;
     uint32_t cycles;
     char socket_path[sizeof(((struct sockaddr_un*)0)->sun_path)];
 };
@@ -49,20 +54,26 @@ static void rising(struct mTiming* t, void* ctx, uint32_t late) {
     a->last = a->pending;
     if (!a->active) return;
     level(a, 1);
-    mTimingSchedule(t, &a->fall, AC_PULSE_CYCLES);
+    mTimingSchedule(t, &a->fall, late < AC_PULSE_CYCLES ? AC_PULSE_CYCLES - late : 1);
+    uint32_t cycle = (uint32_t)mTimingCurrentTime(t) - late;
+    if (a->pulses && a->edgeTempo == a->clock.tempo) {
+        double interval = (uint32_t)(cycle - a->edgeCycle) * 1000000.0 / AC_GBA_HZ;
+        if (!a->intervalMin || interval < a->intervalMin) a->intervalMin = interval;
+        if (interval > a->intervalMax) a->intervalMax = interval;
+    }
+    a->edgeCycle = cycle; a->edgeTempo = a->clock.tempo; a->pulses++;
     uint32_t elapsed = (uint32_t)mTimingCurrentTime(t) - a->cycles;
     int64_t host = a->host + (int64_t)llround(elapsed * 1000000.0 / AC_GBA_HZ);
     int64_t due = ac_next_pulse(&a->clock, host, a->ppqn, a->last, &a->pending);
     int64_t delay = (int64_t)llround((due - host) * AC_GBA_HZ / 1000000.0);
-    if (delay > 0 && elapsed + delay <= 280896)
+    if (delay > 0 && delay <= INT32_MAX)
         mTimingSchedule(t, &a->rise, (int32_t)delay);
-    (void)late;
 }
 void AudioCastClockRebase(struct mCore* c) {
     if (ac.fd < 0 || c->platform(c) != mPLATFORM_GBA) return;
     struct mTiming* t = &((struct GBA*)c->board)->timing;
     mTimingDeschedule(t, &ac.rise); mTimingDeschedule(t, &ac.fall);
-    ac.last = INT64_MIN; ac.active = 0; level(&ac, 0);
+    ac.last = INT64_MIN; ac.active = 0; ac.edgeTempo = 0; level(&ac, 0);
 }
 void AudioCastClockFrame(struct mCore* c) { AudioCastClockFrameAt(c, ac_monotonic_us()); }
 /* One-byte first-frame handshake, not a diagnostic log. The launch session
@@ -81,10 +92,16 @@ void AudioCastClockReady(struct mCore* c) {
     close(fd);
     if (!ac.ready) unlink(marker);
 }
+static void report(void) {
+    if (!ac.diagnostics) return;
+    fprintf(stderr, "AUDIOCAST_CLOCK frames=%u pulses=%u relocks=%u expired=%u interval_us=%.1f..%.1f phase_error_max_us=%.1f\n",
+        ac.frames, ac.pulses, ac.relocks, ac.expired, ac.intervalMin, ac.intervalMax, ac.errorMax);
+}
 void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
     if (ac.fd < 0 || c->platform(c) != mPLATFORM_GBA) return;
     struct GBA* g = c->board;
     struct ACClockSnapshot s;
+    bool phaseJump = false;
     /* Bounded, nonblocking read. Invalid/truncated packets are discarded. */
     for (int i = 0; i < 64; ++i) {
         char packet[sizeof(s)+1];
@@ -94,36 +111,53 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
         memcpy(&s, packet, sizeof(s));
         if (!ac_clock_valid(&s, now) || s.monotonic_us < ac.clock.monotonic_us) continue;
         if (ac.active && fabs(s.beat - ac_beat_at(&ac.clock, s.monotonic_us)) > 0.25)
-            ac.last = INT64_MIN; /* A changed Link phase must not stall behind the old grid. */
+            phaseJump = true;
         ac.clock = s;
     }
-    bool pending = mTimingIsScheduled(&g->timing, &ac.rise);
-    int64_t pendingIndex = ac.pending;
+    bool wasActive = ac.active;
     mTimingDeschedule(&g->timing, &ac.rise);
     ac.active = ac_clock_valid(&ac.clock, now) && ac.clock.peers > 0;
-    if (!ac.active) { mTimingDeschedule(&g->timing, &ac.fall); level(&ac, 0); ac.last = INT64_MIN; return; }
-    ac.host = now + ac.offset;
-    /* masterCycles is always maintained; globalCycles is debugger-only upstream.
-       Unsigned subtraction handles the 32-bit timing counter wrapping. */
-    ac.cycles = (uint32_t)mTimingCurrentTime(&g->timing);
-    /* A deadline can straddle the video-frame boundary by a few CPU cycles.
-       Retain that one edge within 1 ms, even if rounding placed it
-       just outside the previous frame's planning window; never catch up a backlog of missed edges. */
-    if ((pending || (ac.last != INT64_MIN && pendingIndex == ac.last + 1)) &&
-        pendingIndex > ac.last) {
-        double delta = (pendingIndex / (double)ac.ppqn - ac_beat_at(&ac.clock, ac.host)) *
-            60000000.0 / ac.clock.tempo;
-        if (fabs(delta) <= 1000) {
-            ac.pending = pendingIndex;
-            int32_t cycles = delta > 0 ? (int32_t)llround(delta * AC_GBA_HZ / 1000000.0) : 1;
-            mTimingSchedule(&g->timing, &ac.rise, cycles > 0 ? cycles : 1);
-            return;
-        }
+    if (!ac.active) {
+        if (wasActive) ac.expired++;
+        mTimingDeschedule(&g->timing, &ac.fall); level(&ac, 0);
+        ac.last = INT64_MIN; ac.edgeTempo = 0;
+        return;
     }
-    int64_t due = ac_next_pulse(&ac.clock, ac.host, ac.ppqn, ac.last, &ac.pending);
-    int64_t delay = (int64_t)llround((due - ac.host) * AC_GBA_HZ / 1000000.0);
-    /* Plan only the next video frame. Later frames can refresh tempo and phase. */
-    if (delay > 0 && delay <= 280896)
+    uint32_t cycles = (uint32_t)mTimingCurrentTime(&g->timing);
+    double target = now + ac.offset;
+    /* Advance on emulated CPU time. Slowly discipline this mapping against
+       Link's monotonic clock instead of injecting each frame's scheduling jitter.
+       Unsigned subtraction handles the timing counter's 32-bit wrap. */
+    double predicted = ac.host + (uint32_t)(cycles - ac.cycles) * 1000000.0 / AC_GBA_HZ;
+    double error = target - predicted;
+    bool relock = !wasActive || phaseJump || now - ac.wall > 250000 || fabs(error) > 250000;
+    if (relock) {
+        ac.host = target; ac.last = INT64_MIN; ac.edgeTempo = 0; ac.relocks++;
+        mTimingDeschedule(&g->timing, &ac.fall); level(&ac, 0);
+    } else {
+        if (fabs(error) > ac.errorMax) ac.errorMax = fabs(error);
+        double correction = error / 240.0;
+        if (correction > 100) correction = 100;
+        if (correction < -100) correction = -100;
+        ac.host = predicted + correction;
+    }
+    ac.cycles = cycles; ac.wall = now;
+    ac.frames++;
+    if (ac.frames % 600 == 0) report();
+    int64_t delay;
+    if (!relock && ac.pending > ac.last) {
+        /* Keep the next edge even if a tiny phase adjustment crosses its
+           deadline. Never drop a beat at a video-frame boundary. */
+        double delta = (ac.pending / (double)ac.ppqn - ac_beat_at(&ac.clock, (int64_t)llround(ac.host))) *
+            60000000.0 / ac.clock.tempo;
+        delay = (int64_t)llround(delta * AC_GBA_HZ / 1000000.0);
+        if (delay < 1) delay = 1;
+    } else {
+        int64_t host = (int64_t)llround(ac.host);
+        int64_t due = ac_next_pulse(&ac.clock, host, ac.ppqn, ac.last, &ac.pending);
+        delay = (int64_t)llround((due - host) * AC_GBA_HZ / 1000000.0);
+    }
+    if (delay > 0 && delay <= INT32_MAX)
         mTimingSchedule(&g->timing, &ac.rise, (int32_t)delay);
 }
 void AudioCastClockAttach(struct mCore* c) {
@@ -149,6 +183,8 @@ void AudioCastClockAttach(struct mCore* c) {
     /* Do not take over another process's socket; session cleanup owns removal. */
     if (bind(ac.fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) { close(ac.fd); ac.fd = -1; return; }
     strcpy(ac.socket_path, path); ac.last = INT64_MIN;
+    const char* diagnostics = getenv("AUDIOCAST_CLOCK_DIAGNOSTICS");
+    ac.diagnostics = diagnostics && !strcmp(diagnostics, "1");
     ac.d.handlesMode = handles; ac.d.connectedDevices = connected; ac.d.writeRCNT = writeRCNT;
     ac.rise = (struct mTimingEvent){.context=&ac, .callback=rising, .name="AudioCast SC rise", .priority=0x70};
     ac.fall = (struct mTimingEvent){.context=&ac, .callback=falling, .name="AudioCast SC fall", .priority=0x70};
@@ -156,6 +192,7 @@ void AudioCastClockAttach(struct mCore* c) {
 }
 void AudioCastClockDetach(struct mCore* c) {
     if (ac.fd < 0) return;
+    report();
     AudioCastClockRebase(c); c->setPeripheral(c, mPERIPH_GBA_LINK_PORT, NULL);
     close(ac.fd); ac.fd = -1; unlink(ac.socket_path);
 }

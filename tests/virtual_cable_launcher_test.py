@@ -15,7 +15,7 @@ import os,sys,json
 from pathlib import Path
 record=Path(os.environ['CAPTURE'])
 calls=json.loads(record.read_text()) if record.exists() else []
-calls.append({'args':sys.argv[1:],'clock':os.environ.get('AUDIOCAST_CLOCK_SOCKET'),'protocol':os.environ.get('AUDIOCAST_LINK_PROTOCOL')})
+calls.append({'args':sys.argv[1:],'clock':os.environ.get('AUDIOCAST_CLOCK_SOCKET'),'protocol':os.environ.get('AUDIOCAST_LINK_PROTOCOL'),'config':Path(sys.argv[sys.argv.index('--appendconfig')+1]).read_text()})
 record.write_text(json.dumps(calls))
 core=sys.argv[sys.argv.index('-L')+1]
 if core.endswith('mgba-link_libretro.so'):
@@ -39,10 +39,12 @@ if core.endswith('mgba-link_libretro.so'):
     calls=run('PROTOCOL=off\n');assert len(calls)==1 and calls[0]['args'][-3:]==['-L',stock,'Unrelated music program.gba'] and calls[0]['clock'] is None
     calls=run(active,SIM_READY='1')
     assert len(calls)==1 and calls[0]['args'][-3:]==['-L',str(app/'cores/mgba-link_libretro.so'),'Unrelated music program.gba']
+    assert 'video_threaded = "false"' in calls[0]['config'] and 'libretro_log_level = "2"' in calls[0]['config']
     assert calls[0]['clock']==str(runtime/'clock.sock') and calls[0]['protocol']=='gba-clock'
     # Failures before any frame must fall back, including frontend exit code 0.
     for code in ['0','1','139']:
         calls=run(active,PRIVATE_RESULT=code)
+        assert calls[1]['config']=='audio_device = "ac_game"\nconfig_save_on_exit = "false"\n'
         assert len(calls)==2 and calls[1]['args'][-3:]==['-L',stock,'Unrelated music program.gba'] and calls[1]['clock'] is None
     for settings in ['PROTOCOL=gb-serial\n','PROTOCOL=$(touch attacked)\n','PROTOCOL=gba-clock\nPPQN=24\n','PROTOCOL=gba-clock\nOFFSET_US=999999999999999999999\n']:
         calls=run(settings);assert len(calls)==1 and calls[0]['clock'] is None and calls[0]['args'][-2]==stock

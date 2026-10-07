@@ -32,6 +32,8 @@ jobs:
           python3 tools/build_probe.py mgba-build
           python3 tools/build_probe.py mgba-build --synthetic --output core-clock-test
           ./core-clock-test
+          python3 tools/build_probe.py mgba-build --audio --output audio-rate-test
+          ./audio-rate-test
           cc -std=gnu11 -D_POSIX_C_SOURCE=200809L -I mgba/src/platform/libretro tests/libretro_lifecycle.c -ldl -o libretro-lifecycle
           ./host-build/audiocast-core-probe mgba-build/mgba_libretro.so
           ./libretro-lifecycle mgba-build/mgba_libretro.so

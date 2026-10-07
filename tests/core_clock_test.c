@@ -16,11 +16,26 @@
 #include <assert.h>
 static unsigned edges;
 static int high;
+static int sampleCycles = 16777;
+static uint32_t lastEdge;
+static double minInterval, maxInterval;
+static unsigned intervals;
 static struct mTimingEvent sample;
 static void sampling(struct mTiming* t,void* ctx,uint32_t late) {
     struct GBA* g=ctx;
-    int v=g->sio.rcnt&1;if(v&&!high)edges++;high=v;
-    mTimingSchedule(t,&sample,16777-(int32_t)late);
+    int v=g->sio.rcnt&1;
+    if(v&&!high) {
+        uint32_t cycle=(uint32_t)mTimingCurrentTime(t)-late;
+        if(lastEdge) {
+            double interval=(uint32_t)(cycle-lastEdge)*1000000.0/16777216;
+            if(!intervals || interval<minInterval)minInterval=interval;
+            if(!intervals || interval>maxInterval)maxInterval=interval;
+            intervals++;
+        }
+        lastEdge=cycle;edges++;
+    }
+    high=v;
+    mTimingSchedule(t,&sample,sampleCycles-(int32_t)late);
 }
 static void quiet(struct mLogger*l,int cat,enum mLogLevel lev,const char*f,va_list a){(void)l;(void)cat;(void)lev;(void)f;(void)a;}
 int main(void) {
@@ -49,7 +64,29 @@ int main(void) {
     printf("12 PPQN / 400 BPM: %u rising edges, expected %u\n",edges,expected);
     assert(edges==expected);
     unsigned before=edges;AudioCastClockFrameAt(c,s.monotonic_us+1000000);c->runFrame(c);assert(edges==before && !(g->sio.rcnt&1));
-    AudioCastClockRebase(c);AudioCastClockDetach(c);assert(access(path,F_OK)!=0);close(fd);
+    AudioCastClockRebase(c);
+    mTimingDeschedule(&g->timing,&sample);sampleCycles=1677;
+    mTimingSchedule(&g->timing,&sample,sampleCycles);
+    lastEdge=0;intervals=0;minInterval=maxInterval=0;edges=0;
+    AudioCastClockDetach(c);setenv("AUDIOCAST_PPQN","2",1);AudioCastClockAttach(c);
+    int64_t epoch=s.monotonic_us+2000000;
+    s.tempo=120;
+    for(int f=0;f<3000;f++) {
+        /* Scheduling varies by +/-6 ms; snapshots may be 100 ms old.
+           Also run the frontend 200 ppm off nominal to check drift correction. */
+        int64_t now=epoch+(int64_t)llround(f*280896.0/16777216*1000000*1.0002)+(f%2?6000:0);
+        s.monotonic_us=now-(f%7)*16000;
+        s.beat=(s.monotonic_us-epoch)*120/60000000.0;
+        assert(sendto(fd,&s,sizeof(s),0,(struct sockaddr*)&addr,sizeof(addr))==sizeof(s));
+        AudioCastClockFrameAt(c,now);c->runFrame(c);
+    }
+    printf("Jittered frames / 120 BPM / 2 PPQN: %u edges, interval %.1f..%.1f us\n",edges,minInterval,maxInterval);
+    assert(edges>=200 && edges<=202);
+    assert(intervals>190 && minInterval>249000 && maxInterval<251000);
+    before=edges;s.peers=0;s.monotonic_us+=17000;
+    assert(sendto(fd,&s,sizeof(s),0,(struct sockaddr*)&addr,sizeof(addr))==sizeof(s));
+    AudioCastClockFrameAt(c,s.monotonic_us);c->runFrame(c);assert(edges==before);
+    AudioCastClockDetach(c);assert(access(path,F_OK)!=0);close(fd);
     mCoreConfigDeinit(&c->config);c->deinit(c);free(video);
-    puts("PASS: CPU-cycle pulses at maximum supported rate, 32-bit timing wrap, 1 ms polling, stale feed and cleanup");
+    puts("PASS: CPU-cycle pulses at maximum supported rate, 32-bit timing wrap, 1 ms polling, uneven frames, aged snapshots, drift, peer loss, stale feed and cleanup");
 }

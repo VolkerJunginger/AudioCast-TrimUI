@@ -1,64 +1,145 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 834e9fd..e5e4cac 100644
+index 834e9fd..b9ddc67 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -1025,7 +1025,7 @@ endif()
- 
+
  if(BUILD_LIBRETRO)
  	file(GLOB RETRO_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/libretro/*.c)
 -	add_library(${BINARY_NAME}_libretro SHARED ${CORE_SRC} ${RETRO_SRC} ${CORE_VFS_SRC})
-+	add_library(${BINARY_NAME}_libretro SHARED ${CORE_SRC} ${RETRO_SRC} ${CORE_VFS_SRC} src/platform/libretro/audiocast/mgba-clock.c)
++	add_library(${BINARY_NAME}_libretro SHARED ${CORE_SRC} ${RETRO_SRC} ${CORE_VFS_SRC} src/platform/libretro/audiocast/mgba-clock.c src/platform/libretro/audiocast/mgba-audio.c)
  	add_dependencies(${BINARY_NAME}_libretro ${BINARY_NAME}-version-info)
  	set_target_properties(${BINARY_NAME}_libretro PROPERTIES PREFIX "" COMPILE_DEFINITIONS "__LIBRETRO__;COLOR_16_BIT;COLOR_5_6_5;DISABLE_THREADING;MGBA_STANDALONE;${OS_DEFINES};${FUNCTION_DEFINES};ENABLE_VFS;MINIMAL_CORE=2")
  	target_link_libraries(${BINARY_NAME}_libretro ${OS_LIB})
 diff --git a/src/platform/libretro/libretro.c b/src/platform/libretro/libretro.c
-index 12e7913..35417e2 100644
+index 12e7913..f316911 100644
 --- a/src/platform/libretro/libretro.c
 +++ b/src/platform/libretro/libretro.c
-@@ -1,3 +1,4 @@
+@@ -1,3 +1,5 @@
 +#include "audiocast/mgba-clock.h"
++#include "audiocast/mgba-audio.h"
  /* Copyright (c) 2013-2015 Jeffrey Pfau
   *
   * This Source Code Form is subject to the terms of the Mozilla Public
-@@ -612,7 +613,9 @@ void retro_run(void) {
+@@ -424,7 +426,7 @@ void retro_get_system_av_info(struct retro_system_av_info* info) {
+ 	info->geometry.max_height = height;
+
+ 	info->timing.fps = core->frequency(core) / (float) core->frameCycles(core);
+-	info->timing.sample_rate = core->audioSampleRate(core);
++	info->timing.sample_rate = AudioCastAudioActive() ? AUDIOCAST_AUDIO_RATE : core->audioSampleRate(core);
+ }
+
+ void retro_init(void) {
+@@ -513,6 +515,7 @@ void retro_init(void) {
+ }
+
+ void retro_deinit(void) {
++	AudioCastAudioDeinit();
+ 	free(outputBuffer);
+
+ 	if (audioSampleBuffer) {
+@@ -612,7 +615,9 @@ void retro_run(void) {
  		}
  	}
- 
+
 +	AudioCastClockFrame(core);
  	core->runFrame(core);
 +	AudioCastClockReady(core);
  	unsigned width, height;
  	core->currentVideoSize(core, &width, &height);
  	videoCallback(outputBuffer, width, height, BYTES_PER_PIXEL * 256);
-@@ -838,6 +841,7 @@ static void _setupMaps(struct mCore* core) {
- 
+@@ -620,6 +625,15 @@ void retro_run(void) {
+ #ifdef M_CORE_GBA
+ 	if (core->platform(core) == mPLATFORM_GBA) {
+ 		struct mAudioBuffer *buffer = core->getAudioBuffer(core);
++		if (AudioCastAudioActive()) {
++			AudioCastAudioProcess();
++			int produced = AudioCastAudioRead(audioSampleBuffer, audioSampleBufferSize / 2);
++			if (produced > 0) {
++				if (audioLowPassEnabled) _audioLowPassFilter(audioSampleBuffer, produced);
++				audioCallback(audioSampleBuffer, produced);
++			}
++			return;
++		}
+ 		int samplesAvail            = mAudioBufferAvailable(buffer);
+ 		if (samplesAvail > 0) {
+ 			/* Update 'running average' of number of
+@@ -837,7 +851,9 @@ static void _setupMaps(struct mCore* core) {
+ }
+
  void retro_reset(void) {
++	AudioCastAudioReset();
  	core->reset(core);
 +	AudioCastClockRebase(core);
  	mRumbleIntegratorReset(&rumble);
  	_setupMaps(core);
  }
+@@ -879,27 +895,15 @@ bool retro_load_game(const struct retro_game_info* game) {
+ 	 * audio samples in retro_run() to achieve the
+ 	 * best possible frame pacing */
+ 	if (core->platform(core) == mPLATFORM_GBA) {
+-		/* Set initial output audio buffer size
+-		 * to nominal number of samples per frame.
+-		 * Buffer will be resized as required in
+-		 * retro_run(). */
+-		size_t audioSamplesPerFrame = (size_t)((float) core->audioSampleRate(core) * (float) core->frameCycles(core) /
+-			(float)core->frequency(core));
+-		audioSampleBufferSize  = ceil(audioSamplesPerFrame) * 2;
++		/* Fixed frontend rate avoids opening ALSA from load_game and reopening it
++		 * on SOUNDBIAS changes. Convert the emulated DAC rate inside this core. */
++		audioSampleBufferSize = 2048 * 2;
+ 		audioSampleBuffer = malloc(audioSampleBufferSize * sizeof(int16_t));
+-		audioSamplesPerFrameAvg = (float) audioSamplesPerFrame;
+-		/* Internal audio buffer size should be
+-		 * audioSamplesPerFrame, but number of samples
+-		 * actually generated varies slightly on a
+-		 * frame-by-frame basis. We therefore allow
+-		 * for some wriggle room by setting double
+-		 * what we need (accounting for the hard
+-		 * coded blip buffer limit of 0x4000). */
+-		size_t internalAudioBufferSize = audioSamplesPerFrame * 2;
+-		if (internalAudioBufferSize > 0x4000) {
+-			internalAudioBufferSize = 0x4000;
+-		}
+-		core->setAudioBufferSize(core, internalAudioBufferSize);
++		audioSamplesPerFrameAvg = 0;
++		/* Room for a full frame at the highest GBA DAC rate (262144 Hz). */
++		core->setAudioBufferSize(core, 0x4000);
++		stream.postAudioBuffer = NULL;
++		AudioCastAudioInit(core->getAudioBuffer(core), core->audioSampleRate(core));
+ 	} else
+ 	#endif
+ 	{
 @@ -989,6 +993,7 @@ bool retro_load_game(const struct retro_game_info* game) {
  #endif
- 
+
  	core->reset(core);
 +	AudioCastClockAttach(core);
  	_setupMaps(core);
- 
+
  	return true;
-@@ -998,6 +1003,7 @@ void retro_unload_game(void) {
+@@ -998,6 +1003,8 @@ void retro_unload_game(void) {
  	if (!core) {
  		return;
  	}
 +	AudioCastClockDetach(core);
++	AudioCastAudioDeinit();
  	mCoreConfigDeinit(&core->config);
  	core->deinit(core);
  	mappedMemoryFree(data, dataSize);
-@@ -1041,6 +1047,7 @@ bool retro_unserialize(const void* data, size_t size) {
+@@ -1041,6 +1048,7 @@ bool retro_unserialize(const void* data, size_t size) {
  	}
  	struct VFile* vfm = VFileFromConstMemory(data, size);
  	bool success = mCoreLoadStateNamed(core, vfm, SAVESTATE_RTC);
-+	if (success) AudioCastClockRebase(core);
++	if (success) { AudioCastClockRebase(core); AudioCastAudioReset(); AudioCastAudioRate(core->audioSampleRate(core)); }
  	vfm->close(vfm);
  	return success;
  }
+@@ -1251,6 +1259,7 @@ static void _postAudioBuffer(struct mAVStream* stream, struct mAudioBuffer* buff
+
+ static void _audioRateChanged(struct mAVStream* stream, unsigned rate) {
+ 	UNUSED(stream);
++	if (AudioCastAudioActive()) { AudioCastAudioRate(rate); return; }
+ 	struct retro_system_av_info info;
+ 	retro_get_system_av_info(&info);
+ 	environCallback(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &info);
