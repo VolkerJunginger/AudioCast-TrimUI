@@ -64,3 +64,9 @@ Pushes to `main` and pull requests run verification. Publishing requires a manua
 The initial dedicated-repository import comes from `VolkerJunginger/Testing-Github` commit `4142b969a368bae6014a2d21194067ebaf31d595` (StockUI v0.2.2). Production app scripts and native source are retained without behavioral edits. The migration changes source layout, documentation and packaging only.
 
 The old repository retains historical NextUI experiments and earlier capability tests. Personal card snapshots, logs, ROMs and the one-card repair script are not part of this project.
+
+## Current LINK4BRICK menu assets
+
+Before building a fresh checkout, install Pillow and run `python3 tools/make_ui_assets.py`. The generator downloads the pinned Inter font only if it is missing, verifies its SHA-256 and produces the menu atlas, display logo and matching `src/ui_font.h`. The full corresponding source bundle contains that font, its SIL OFL license and the exact generated header used for the build. CMake then builds the settings binary normally. Font metrics can differ by FreeType/Pillow version; the menu validates against its own generated atlas size rather than a Mac-specific value.
+
+The runtime folder is `Apps/LINK4BRICK`; internal executable and environment names are retained in this folder-first migration. Current modes are FMS GBA, STEPPER and FMS Clock. Launcher management is GBA-only. The audio buffer preference requests temporary RetroArch ALSA latency from 0 through 150 ms in 10 ms steps. See the current README and sync guide instead of historical experimental app instructions.

@@ -94,6 +94,8 @@ jobs:
             -std=gnu11 -D_POSIX_C_SOURCE=200809L -I mgba/src/platform/libretro \
             tests/libretro_lifecycle.c -ldl -o build/libretro-lifecycle
           AC_SDK_SYSROOT=$(/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-gcc -print-sysroot)
+          (cd Apps/LINK4BRICK && qemu-aarch64 -cpu cortex-a53 -L "$AC_SDK_SYSROOT" ../../build/audiocast-settings --render /tmp/link4brick-menu.ppm)
+          python3 -c 'from pathlib import Path; assert Path("/tmp/link4brick-menu.ppm").read_bytes().startswith(b"P6\n1024 768\n")'
           qemu-aarch64 -cpu cortex-a53 -L "$AC_SDK_SYSROOT" build/audiocast-core-probe mgba-build/mgba_libretro.so
           qemu-aarch64 -cpu cortex-a53 -L "$AC_SDK_SYSROOT" build/libretro-lifecycle mgba-build/mgba_libretro.so
           qemu-aarch64 -cpu cortex-a53 -L "$AC_SDK_SYSROOT" build/libretro-lifecycle mgba-build/mgba_libretro.so --gb
