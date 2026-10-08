@@ -13,7 +13,7 @@ CLOCK=off
 PPQN=2
 if [ -f "$APP/cable/config.txt" ] && [ ! -L "$APP/cable/config.txt" ]; then
   while IFS='=' read -r name value; do
-    case "$name:$value" in PROTOCOL:off|PROTOCOL:fms-gba|PROTOCOL:gba-clock|PROTOCOL:dmgo-gb|PROTOCOL:stepper-gba) CLOCK=$value;; PPQN:1|PPQN:2|PPQN:4|PPQN:6|PPQN:8|PPQN:12|PPQN:16|PPQN:24|PPQN:48|PPQN:96) PPQN=$value;; esac
+    case "$name:$value" in PROTOCOL:off|PROTOCOL:fms-gba|PROTOCOL:gba-clock|PROTOCOL:dmgo-gb|PROTOCOL:stepper-gba|PROTOCOL:fms-clock) CLOCK=$value;; PPQN:1|PPQN:2|PPQN:3|PPQN:4|PPQN:6|PPQN:8|PPQN:12|PPQN:16|PPQN:24|PPQN:48|PPQN:96) PPQN=$value;; esac
   done < "$APP/cable/config.txt"
 fi
 case "${1:-show}" in
@@ -23,11 +23,13 @@ case "${1:-show}" in
   get-clock) echo "$CLOCK"; exit 0;;
   get-ppqn) echo "$PPQN"; exit 0;;
   set-audio) case "${2:-}" in on|off) target="$APP/settings.txt";; *) exit 2;; esac;;
-  set-clock) case "${2:-}" in off|fms-gba|gba-clock|dmgo-gb|stepper-gba) target="$APP/cable/config.txt";; *) exit 2;; esac;;
+  set-clock) case "${2:-}" in off|fms-gba|gba-clock|dmgo-gb|stepper-gba|fms-clock) target="$APP/cable/config.txt";; *) exit 2;; esac;;
   set-ppqn)
-    [ "$CLOCK" = stepper-gba ] || { echo 'PPQ is fixed for this clock mode.'; exit 2; }
-    case "${2:-}" in 4|6|12|24|48|96) target="$APP/cable/config.txt";; *) exit 2;; esac;;
-  *) echo 'usage: settings.sh show|get-audio|get-clock|get-ppqn|audio-value|set-ppqn 4|6|12|24|48|96|set-audio on|off|set-clock off|fms-gba|gba-clock|dmgo-gb|stepper-gba' >&2; exit 2;;
+    case "$CLOCK:${2:-}" in
+      stepper-gba:4|stepper-gba:6|stepper-gba:12|stepper-gba:24|stepper-gba:48|stepper-gba:96|fms-clock:1|fms-clock:2|fms-clock:3|fms-clock:4|fms-clock:6|fms-clock:8) target="$APP/cable/config.txt";;
+      *) echo 'PPQ unavailable for this clock mode.'; exit 2;;
+    esac;;
+  *) echo 'usage: settings.sh show|get-audio|get-clock|get-ppqn|audio-value|set-ppqn 4|6|12|24|48|96|set-audio on|off|set-clock off|fms-gba|gba-clock|dmgo-gb|stepper-gba|fms-clock' >&2; exit 2;;
 esac
 [ ! -d /tmp/audiocast-v0.2b ] || { echo 'Close the running game first.' >&2; exit 1; }
 [ ! -L "$target" ] && { [ ! -e "$target" ] || [ -f "$target" ]; } || exit 1

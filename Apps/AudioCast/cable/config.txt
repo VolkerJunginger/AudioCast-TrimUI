@@ -1,5 +1,6 @@
 # Optional virtual link cable. Casting works independently of this setting.
 # Protocols: off, gba-clock (SC pulses), fms-gba (serial START/STOP, 24 PPQN).
+# fms-clock uses polled SC; PPQN=1,2,3,4,6,8 (match FMS SYNC IN / CLOCK).
 # stepper-gba uses SI interrupts; PPQN=4,6,12,24,48,96 (match STEPPER LINK IN).
 # fms-gba requires PPQN=24 and FMS SYNC IN / GBA; Brick START queues beat 1.
 PROTOCOL=off

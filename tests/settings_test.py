@@ -27,6 +27,10 @@ with tempfile.TemporaryDirectory(prefix='ac-settings-') as d:
         cli(menu,'--render',str(sd/'stepper-menu.ppm'))
     for bad in ['2','8','16','192','$(touch HACKED)']:
         before=(app/'cable/config.txt').read_bytes();cli(*helper,'set-ppqn',bad,ok=False);assert (app/'cable/config.txt').read_bytes()==before
+    cli(menu,'--change','2');assert cli(*helper,'get-clock')=='fms-clock' and cli(*helper,'get-ppqn')=='2'
+    for ppq in [3,4,6,8,1,2]:
+        cli(menu,'--change','3');assert cli(*helper,'get-ppqn')==str(ppq)
+    cli(*helper,'set-ppqn','24',ok=False)
     cli(menu,'--change','2');assert cli(*helper,'get-clock')=='off'
     cli(menu,'--change','0');assert launcher.read_bytes()==original and (app/'icon.png').read_bytes()==b'off'
     (app/'settings.txt').write_text('LINK_AUDIO=$(touch HACKED)\nBAD=1\n');assert cli(*helper,'audio-value')=='1' and not (app/'HACKED').exists()

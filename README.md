@@ -103,3 +103,5 @@ For **DMGo**, choose **DMGO / GAME BOY**, launch it from Games → GB, and selec
 This is **not a universal Game Link implementation**. Each program needs its own protocol. FMS native serial, GBA GPIO pulses and DMGo serial clock are the implemented modes; trading, multiplayer, LSDJ and general MIDI are not supported. See [setup, validation and limits](docs/VIRTUAL_LINK_CABLE.md).
 
 The development preview adds **CLOCK: STEPPER / GBA** with **PPQ: 4, 6, 12, 24, 48 or 96**. Match the rate to STEPPER’s **LINK IN (BPQ)** setting. See [the sync guide](docs/VIRTUAL_LINK_CABLE.md) for transport controls and current validation.
+
+For adjustable FMS clock rates, choose **CLOCK: FMS / CLOCK** and **PPQ: 1, 2, 3, 4, 6 or 8**, matching **FMS SYNC IN / CLOCK**. The existing **FMS / GBA** serial mode remains fixed at 24 PPQ.

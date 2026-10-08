@@ -23,7 +23,7 @@ struct ACDriver {
     struct mTimingEvent rise, fall;
     struct ACClockSnapshot clock;
     int fd, ppqn, high, active, ready, tempoLatch, serial;
-    int wanted, serialPlaying, startKey, quantum, stepper;
+    int wanted, serialPlaying, startKey, quantum, stepper, fmsClock;
     double startBeat;
     unsigned starts, stops, missed;
     int64_t offset, wall, last, pending;
@@ -55,9 +55,9 @@ static int serialSend(struct ACDriver* a, uint8_t message, uint32_t late) {
 }
 uint16_t AudioCastClockInput(struct mCore* c, uint16_t keys) {
     if (c->platform(c) == mPLATFORM_GB) return ACGBClockInput(c, keys);
-    if (ac.fd < 0 || (!ac.serial && !ac.stepper) || c->platform(c) != mPLATFORM_GBA) return keys;
+    if (ac.fd < 0 || (!ac.serial && !ac.stepper && !ac.fmsClock) || c->platform(c) != mPLATFORM_GBA) return keys;
     int pressed = !!(keys & 8);
-    int receiver = ac.stepper ? ac.d.p && ac.d.p->mode == GBA_SIO_GPIO &&
+    int receiver = ac.fmsClock ? ac.d.p && ac.d.p->mode == GBA_SIO_GPIO && !(ac.d.p->rcnt & 0x10) : ac.stepper ? ac.d.p && ac.d.p->mode == GBA_SIO_GPIO &&
         (ac.d.p->rcnt & 0x100) && !(ac.d.p->rcnt & 0x40) : serialReceiver(&ac);
     /* SELECT+START saves STEPPER's bank; it is not a transport request. */
     if (ac.stepper && (keys & 4)) receiver = 0;
@@ -136,10 +136,10 @@ static void rising(struct mTiming* t, void* ctx, uint32_t late) {
     struct ACDriver* a = ctx;
     if (a->serial) { serialRising(t, a, late); return; }
     a->last = a->pending;
-    if (!a->active || (a->stepper && !a->wanted)) return;
-    if (a->stepper && !a->serialPlaying) {
+    if (!a->active || ((a->stepper || a->fmsClock) && !a->wanted)) return;
+    if ((a->stepper || a->fmsClock) && !a->serialPlaying) {
         a->serialPlaying = 1; a->starts++;
-        if (a->diagnostics) fprintf(stderr, "AUDIOCAST_STEPPER START beat=%.6f ppqn=%d quantum=4\n", a->startBeat, a->ppqn);
+        if (a->diagnostics) fprintf(stderr, "AUDIOCAST_PULSE START beat=%.6f ppqn=%d quantum=4 protocol=%s\n", a->startBeat, a->ppqn, a->stepper ? "stepper-gba" : "fms-clock");
     }
     /* A tempo edit can advance the next edge into the previous pulse's
        active interval. Never enqueue the same timing event twice. */
@@ -170,8 +170,8 @@ static void rising(struct mTiming* t, void* ctx, uint32_t late) {
     double period = 60000000.0 / (a->clock.tempo * a->ppqn);
     double error = (a->last / (double)a->ppqn - ac_beat_at(&a->clock, host)) *
         60000000.0 / a->clock.tempo;
-    double correction = a->tempoLatch ? 0.0 : error / (a->stepper ? 16.0 : 64.0);
-    double limit = period * (a->stepper ? 0.02 : 0.0004);
+    double correction = a->tempoLatch ? 0.0 : error / ((a->stepper || a->fmsClock) ? 16.0 : 64.0);
+    double limit = period * ((a->stepper || a->fmsClock) ? 0.02 : 0.0004);
     if (correction > limit) correction = limit;
     if (correction < -limit) correction = -limit;
     if (fabs(correction) > a->correctionMax) a->correctionMax = fabs(correction);
@@ -209,7 +209,7 @@ void AudioCastClockReady(struct mCore* c) {
 static void report(void) {
     if (!ac.diagnostics) return;
     fprintf(stderr, "AUDIOCAST_CLOCK frames=%u pulses=%u relocks=%u expired=%u interval_us=%.1f..%.1f phase_error_max_us=%.1f scheduler=%s edge_correction_max_us=%.1f starts=%u stops=%u missed=%u advance_us=%lld quantum=%d\n",
-        ac.frames, ac.pulses, ac.relocks, ac.expired, ac.intervalMin, ac.intervalMax, ac.errorMax, ac.serial ? "bar-serial-24" : ac.stepper ? "stepper-si-irq" : ac.tempoLatch ? "tempo-latch" : "pulse-pll", ac.correctionMax, ac.starts, ac.stops, ac.missed, (long long)ac.offset, ac.quantum);
+        ac.frames, ac.pulses, ac.relocks, ac.expired, ac.intervalMin, ac.intervalMax, ac.errorMax, ac.serial ? "bar-serial-24" : ac.stepper ? "stepper-si-irq" : ac.fmsClock ? "fms-sc-clock" : ac.tempoLatch ? "tempo-latch" : "pulse-pll", ac.correctionMax, ac.starts, ac.stops, ac.missed, (long long)ac.offset, ac.quantum);
 }
 void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
     if (c->platform(c) == mPLATFORM_GB) { ACGBClockFrameAt(c, now); return; }
@@ -233,7 +233,7 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
     ac.active = ac_clock_valid(&ac.clock, now) && ac.clock.peers > 0;
     if (!ac.active) {
         if (ac.serial && ac.serialPlaying && serialSend(&ac, 0x03, 0)) { ac.serialPlaying = 0; ac.stops++; }
-        if ((ac.serial || ac.stepper) && wasActive) { ac.wanted = 0; ac.startBeat = NAN; ac.serialPlaying = 0; }
+        if ((ac.serial || ac.stepper || ac.fmsClock) && wasActive) { ac.wanted = 0; ac.startBeat = NAN; ac.serialPlaying = 0; }
         if (wasActive) ac.expired++;
         mTimingDeschedule(&g->timing, &ac.rise);
         mTimingDeschedule(&g->timing, &ac.fall); level(&ac, 0);
@@ -295,8 +295,8 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
         }
         return;
     }
-    if (ac.stepper) {
-        int receiver = g->sio.mode == GBA_SIO_GPIO && (g->sio.rcnt & 0x100) && !(g->sio.rcnt & 0x40);
+    if (ac.stepper || ac.fmsClock) {
+        int receiver = ac.fmsClock ? g->sio.mode == GBA_SIO_GPIO && !(g->sio.rcnt & 0x10) : g->sio.mode == GBA_SIO_GPIO && (g->sio.rcnt & 0x100) && !(g->sio.rcnt & 0x40);
         if (!receiver || !ac.wanted || (relock && ac.serialPlaying)) {
             mTimingDeschedule(&g->timing, &ac.rise); mTimingDeschedule(&g->timing, &ac.fall);
             if (ac.serialPlaying) ac.stops++;
@@ -347,8 +347,9 @@ void AudioCastClockAttach(struct mCore* c) {
     memset(&ac, 0, sizeof(ac)); ac.fd = -1;
     const char* protocol = getenv("AUDIOCAST_LINK_PROTOCOL");
     ac.serial = protocol && !strcmp(protocol, "fms-gba");
+    ac.fmsClock = protocol && !strcmp(protocol, "fms-clock");
     ac.stepper = protocol && !strcmp(protocol, "stepper-gba");
-    if (protocol && strcmp(protocol, "gba-clock") && !ac.serial && !ac.stepper) return;
+    if (protocol && strcmp(protocol, "gba-clock") && !ac.serial && !ac.stepper && !ac.fmsClock) return;
     ac.quantum = 4; ac.startBeat = NAN;
     const char* path = getenv("AUDIOCAST_CLOCK_SOCKET");
     if (!path || c->platform(c) != mPLATFORM_GBA || strlen(path) >= sizeof(ac.socket_path)) return;
@@ -356,6 +357,8 @@ void AudioCastClockAttach(struct mCore* c) {
     ac.ppqn = ac.serial ? 24 : p ? atoi(p) : 2;
     if (ac.stepper) {
         if (ac.ppqn != 4 && ac.ppqn != 6 && ac.ppqn != 12 && ac.ppqn != 24 && ac.ppqn != 48 && ac.ppqn != 96) return;
+    } else if (ac.fmsClock) {
+        if (ac.ppqn != 1 && ac.ppqn != 2 && ac.ppqn != 3 && ac.ppqn != 4 && ac.ppqn != 6 && ac.ppqn != 8) return;
     } else if (!ac.serial && ac.ppqn != 1 && ac.ppqn != 2 && ac.ppqn != 4 && ac.ppqn != 8 && ac.ppqn != 12) return;
     const char* offset = getenv("AUDIOCAST_OFFSET_US");
     char* end = NULL;
@@ -363,7 +366,7 @@ void AudioCastClockAttach(struct mCore* c) {
     if (offset && (!*offset || !end || *end)) return;
     if (ac.offset < -250000 || ac.offset > 250000) return;
     const char* mode = getenv("AUDIOCAST_CLOCK_MODE");
-    ac.tempoLatch = !ac.serial && !ac.stepper && mode && !strcmp(mode, "tempo-latch");
+    ac.tempoLatch = !ac.serial && !ac.stepper && !ac.fmsClock && mode && !strcmp(mode, "tempo-latch");
     ac.fd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (ac.fd < 0) return;
     fcntl(ac.fd, F_SETFL, O_NONBLOCK); fcntl(ac.fd, F_SETFD, FD_CLOEXEC);

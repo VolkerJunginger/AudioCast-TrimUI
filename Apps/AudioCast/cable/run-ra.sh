@@ -9,7 +9,7 @@ while [ "$remaining" -gt 0 ]; do
     case "$core" in
       */mgba_libretro.so|*/gambatte_gb_libretro.so|*/gambatte_libretro.so)
         case "$AUDIOCAST_LINK_PROTOCOL:$core" in
-          dmgo-gb:*/gambatte_gb_libretro.so|dmgo-gb:*/gambatte_libretro.so|dmgo-gb:*/mgba_libretro.so|stepper-gba:*/mgba_libretro.so|fms-gba:*/mgba_libretro.so|gba-clock:*/mgba_libretro.so) ;;
+          dmgo-gb:*/gambatte_gb_libretro.so|dmgo-gb:*/gambatte_libretro.so|dmgo-gb:*/mgba_libretro.so|fms-clock:*/mgba_libretro.so|stepper-gba:*/mgba_libretro.so|fms-gba:*/mgba_libretro.so|gba-clock:*/mgba_libretro.so) ;;
           *) set -- "$@" -L "$core"; continue;;
         esac
         set -- "$@" -L "$AC_APP/cores/mgba-link_libretro.so"

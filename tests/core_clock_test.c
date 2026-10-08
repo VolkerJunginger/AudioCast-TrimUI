@@ -139,6 +139,33 @@ int main(void) {
     before=edges;s.peers=0;s.monotonic_us+=17000;
     assert(sendto(fd,&s,sizeof(s),0,(struct sockaddr*)&addr,sizeof(addr))==sizeof(s));
     AudioCastClockFrameAt(c,s.monotonic_us);c->runFrame(c);assert(edges==before);
+    /* Adjustable FMS CLOCK mode: polled SC, normal START preserved and
+       first pulse held to the next bar. These are FMS 1.31's PPQ choices. */
+    AudioCastClockDetach(c);
+    int fmsRates[]={1,2,3,4,6,8};
+    setenv("AUDIOCAST_LINK_PROTOCOL","fms-clock",1);
+    for(unsigned r=0;r<sizeof(fmsRates)/sizeof(fmsRates[0]);r++) {
+        char rate[8];snprintf(rate,sizeof(rate),"%d",fmsRates[r]);setenv("AUDIOCAST_PPQN",rate,1);
+        AudioCastClockAttach(c);GBASIOWriteRCNT(&g->sio,0x8000);
+        edges=0;lastEdge=0;intervals=0;minInterval=maxInterval=0;
+        epoch+=100000000;s.tempo=120;s.peers=1;
+        for(int f=0;f<720;f++) {
+            int64_t now=epoch+(int64_t)llround(f*280896.0/16777216*1000000);
+            s.monotonic_us=now;s.beat=(now-epoch)*120/60000000.0;
+            if(f==10){assert(AudioCastClockInput(c,9)==9);assert(AudioCastClockInput(c,9)==9);AudioCastClockInput(c,0);}
+            if(f==119)assert(edges==0);
+            assert(sendto(fd,&s,sizeof(s),0,(struct sockaddr*)&addr,sizeof(addr))==sizeof(s));
+            AudioCastClockFrameAt(c,now);c->runFrame(c);
+        }
+        unsigned expected=(unsigned)floor((720*280896.0/16777216-2)*120/60*fmsRates[r])+1;
+        assert(edges==expected);
+        double period=60000000.0/(120*fmsRates[r]);
+        assert(minInterval>period-110&&maxInterval<period+110);
+        printf("FMS CLOCK / %d PPQ: %u SC pulses, interval %.1f..%.1f us\n",fmsRates[r],edges,minInterval,maxInterval);
+        before=edges;assert(AudioCastClockInput(c,8)==8);AudioCastClockInput(c,0);
+        AudioCastClockFrameAt(c,s.monotonic_us+17000);c->runFrame(c);assert(edges==before&&!(g->sio.rcnt&1));
+        AudioCastClockDetach(c);
+    }
     AudioCastClockDetach(c);assert(access(path,F_OK)!=0);close(fd);
     mCoreConfigDeinit(&c->config);c->deinit(c);free(video);
     puts("PASS: CPU-cycle pulses at maximum supported rate, 32-bit timing wrap, 1 ms polling, uneven frames, aged snapshots, drift, phase corrections, tempo changes, tempo-only oscillator, peer loss, stale feed and cleanup");
