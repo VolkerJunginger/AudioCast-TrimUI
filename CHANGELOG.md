@@ -2,6 +2,9 @@
 
 ## Unreleased — clock/settings preview
 
+- App renamed LINK4BRICK; existing SD-card paths stay compatible.
+- Preserve supplied ON/OFF icons in packages and repair the active icon whenever settings open.
+
 - On-device settings for enabled state, Link audio and cable protocol.
 - Clock-only mode keeps Link tempo and the Brick speaker without advertising an audio channel.
 - Game Boy serial adapter for DMGo LINK IN, verified in emulation; device testing pending.

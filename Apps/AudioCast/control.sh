@@ -91,10 +91,11 @@ restore() {
   echo "OFF: all managed launchers restored byte-for-byte."
 }
 case "${1:-toggle}" in
+  refresh-icon) exit 0 ;;
   off) restore; exit $? ;;
   toggle) if [ -f "$MANIFEST" ]; then restore; exit $?; fi ;;
   on) if [ -f "$MANIFEST" ]; then echo "Already installed; use off before reinstalling."; exit 1; fi ;;
-  *) echo "usage: control.sh [on|off|toggle]"; exit 2 ;;
+  *) echo "usage: control.sh [on|off|toggle|refresh-icon]"; exit 2 ;;
 esac
 check_helper || exit 1
 for binary in linkaudio-send audiocast-session alsa-probe; do

@@ -315,15 +315,15 @@ def package(path):
                 assert data[:6] == b"\x7fELF\x02\x01"
                 assert int.from_bytes(data[18:20], "little") == 183
         config = json.loads(z.read("Apps/AudioCast/config.json"))
-        assert config["launch"] == "launch.sh" and config["label"] == "AudioCast"
+        assert config["launch"] == "launch.sh" and config["label"] == "LINK4BRICK"
         assert config["icontop"] == "icon.png" and config["icon"] == ""
         from PIL import Image
         from io import BytesIO
         for name in ["icon.png", "icon-on.png", "icon-off.png"]:
             icon = Image.open(BytesIO(z.read("Apps/AudioCast/" + name)))
-            assert icon.size == (256, 256) and icon.mode == "RGBA"
+            assert icon.size == (256, 256) and icon.mode in ("RGBA", "RGB", "P")
             icon.load()
-            assert icon.getextrema()[3] == (0, 255)
+            assert icon.convert("RGBA").getextrema()[3][1] == 255
         assert z.read("Apps/AudioCast/icon.png") == z.read("Apps/AudioCast/icon-off.png")
         assert z.read("Apps/AudioCast/icon-on.png") != z.read("Apps/AudioCast/icon-off.png")
         for script in ["launch.sh", "run.sh"]:

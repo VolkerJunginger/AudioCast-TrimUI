@@ -1,6 +1,6 @@
 <div align="center">
   <img src="docs/images/icon-on.png" width="144" alt="AudioCast: a handheld connected to an audio link">
-  <h1>AudioCast for TrimUI</h1>
+  <h1>LINK4BRICK</h1>
   <p><strong>Your Game Boy audio. On the Brick and on Push.</strong></p>
   <p>Stream GB and GBA game audio from a TrimUI Brick Hammer running StockUI to Ableton Link Audio over Wi-Fi, while keeping the Brick speaker playing.</p>
   <p>
@@ -38,7 +38,7 @@ This branch adds settings and a DMGo Game Boy adapter, awaiting device validatio
 3. Extract the ZIP at the **SD-card root**, merging the `Apps` directory. The app should end up at `Apps/AudioCast/launch.sh`.
 4. Safely eject the card and reboot the Brick.
 5. Connect the Brick and Push to the same local Wi-Fi network. The tested setup uses the Push Wi-Fi network.
-6. In this experimental settings build, open **Apps → AudioCast**, set **ENABLED: ON**, and press **B** to return. The published v0.2.2 still toggles directly.
+6. In this experimental settings build, open **Apps → LINK4BRICK**, set **ENABLED: ON**, and press **B** to return. The published v0.2.2 still toggles directly.
 7. Start a GB or GBA game normally. On Push, select **Brick Out** from the Link Audio sources. The peer is **TrimUI Brick Hammer**.
 
 The channel exists during a game session and is recreated for each game. You may need to select it again after changing games.
@@ -50,7 +50,7 @@ The channel exists during a game session and is recreated for each game. You may
 | <img src="docs/images/icon-on.png" width="112" alt="ON: turquoise link and filled dot"> | <img src="docs/images/icon-off.png" width="112" alt="OFF: gray link and hollow dot"> |
 | Casting enabled | Casting disabled |
 
-Quit the game, then open **AudioCast** and set **ENABLED: OFF** to restore the original launchers. In published v0.2.2, opening AudioCast again toggles it OFF. The icon represents **enabled/disabled**, not whether Push is connected. If StockUI shows an old icon, leave and reopen Apps or reboot.
+Quit the game, then open **LINK4BRICK** and set **ENABLED: OFF** to restore the original launchers. In published v0.2.2, opening AudioCast again toggles it OFF. The icon represents **enabled/disabled**, not whether Push is connected. If StockUI shows an old icon, leave and reopen Apps or reboot.
 
 **Always switch OFF before updating or deleting the app.** Replacing the app folder while it is ON can remove its activation records while leaving launcher wrappers behind. See [recovery instructions](docs/TROUBLESHOOTING.md#incomplete-upgrade-or-missing-activation-records) if this has happened.
 
@@ -76,15 +76,17 @@ Quit the game, then open **AudioCast** and set **ENABLED: OFF** to restore the o
 - [Release history](CHANGELOG.md)
 - [Report a problem](https://github.com/VolkerJunginger/AudioCast-TrimUI/issues/new/choose)
 
-AudioCast uses [Ableton Link](https://github.com/Ableton/link) and the [tg5040 toolchain](https://github.com/loveretro/tg5040-toolchain). The app icons are original AudioCast artwork. This is an independent project, not an official Ableton or TrimUI product. See [third-party notices](THIRD_PARTY.md).
+AudioCast uses [Ableton Link](https://github.com/Ableton/link) and the [tg5040 toolchain](https://github.com/loveretro/tg5040-toolchain). The current ON/OFF icons were supplied by the project maintainer and are packaged unchanged. This is an independent project, not an official Ableton or TrimUI product. See [third-party notices](THIRD_PARTY.md).
 
 ## License
 
 [GPL-2.0-or-later](LICENSE), matching the open-source license used for Ableton Link. See [third-party notices](THIRD_PARTY.md) for dependency attribution.
 
+The preview is named **LINK4BRICK**. Its SD-card folder remains `Apps/AudioCast` to preserve existing installations and launcher backups. The published v0.2.2 still uses the AudioCast name.
+
 ## Experimental clock and settings build
 
-Open **Apps → AudioCast**. Use **UP/DOWN** to select a row, **A** to change it and **B** to return.
+Open **Apps → LINK4BRICK**. Use **UP/DOWN** to select a row, **A** to change it and **B** to return.
 
 | Setting | Choices |
 |---|---|

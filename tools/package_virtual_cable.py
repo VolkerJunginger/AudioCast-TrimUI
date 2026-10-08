@@ -21,7 +21,6 @@ with tempfile.TemporaryDirectory() as t:
   config=app/'cable/config.txt';config.write_text('PROTOCOL=fms-gba\nPPQN=24\nOFFSET_US=0\n')
   meta=json.loads((app/'config.json').read_text());meta['description']='Experimental virtual GBA clock cable and GB/GBA audio casting'
   (app/'config.json').write_text(json.dumps(meta,indent=2)+'\n')
-  for state in ['on','off']:subprocess.run([sys.executable,str(ROOT/'tools/make_icon.py'),str(app/('icon-'+state+'.png')),state],check=True)
   shutil.copyfile(app/'icon-off.png',app/'icon.png')
   for p in app.rglob('*.sh'):p.chmod(0o755);subprocess.run(['sh','-n',str(p)],check=True)
   shutil.copyfile(ROOT/'docs/VIRTUAL_LINK_CABLE.md',stage/'README.txt')
@@ -37,7 +36,7 @@ with tempfile.TemporaryDirectory() as t:
     assert z.testzip() is None
     assert all(n.startswith(('Apps/AudioCast/','LICENSES/')) or n in ['README.txt','THIRD_PARTY.txt'] for n in z.namelist())
     assert not any(n.lower().endswith(('.gb','.gba','.sav','.srm','.log','.pak')) for n in z.namelist())
-    assert json.loads(z.read('Apps/AudioCast/config.json'))['label']=='AudioCast'
+    assert json.loads(z.read('Apps/AudioCast/config.json'))['label']=='LINK4BRICK'
     assert b'PROTOCOL=fms-gba\n' in z.read('Apps/AudioCast/cable/config.txt')
     assert 'Apps/AudioCast/enabled' not in z.namelist() and 'Apps/AudioCast/launchers.list' not in z.namelist()
     for n in bins:assert (z.getinfo('Apps/AudioCast/bin/'+n).external_attr>>16)&0o111

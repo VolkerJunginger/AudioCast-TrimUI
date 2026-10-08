@@ -49,7 +49,7 @@ FMS's cable modes are distinct: [FMS external-sync guide](https://lo-bit.club/fm
 
 ## Settings and clock-only mode
 
-Opening AudioCast shows **ENABLED**, **LINK AUDIO** and **CLOCK**. UP/DOWN selects; A changes; B returns. Changes apply at the next normal game launch. ENABLED uses the existing reversible control and ON/OFF icons. LINK AUDIO is saved as data in `Apps/AudioCast/settings.txt` and defaults to ON. OFF keeps classic Link, local clock snapshots and the local speaker active. The sender drains PCM continuously but creates no Link Audio sink or “Brick Out” channel. This prevents a blocked FIFO without streaming silent audio.
+Opening LINK4BRICK shows **ENABLED**, **LINK AUDIO** and **CLOCK**. UP/DOWN selects; A changes; B returns. Changes apply at the next normal game launch. ENABLED uses the existing reversible control and ON/OFF icons. LINK AUDIO is saved as data in `Apps/AudioCast/settings.txt` and defaults to ON. OFF keeps classic Link, local clock snapshots and the local speaker active. The sender drains PCM continuously but creates no Link Audio sink or “Brick Out” channel. This prevents a blocked FIFO without streaming silent audio.
 
 ## Game Boy / DMGo
 
@@ -80,7 +80,7 @@ OFFSET_US=0
 ```
 
 `PROTOCOL=off` retains casting alone and is the source default. The experimental
-package defaults to `fms-gba`, 24 PPQN and zero offset. Regular AudioCast ON/OFF governs the normal game
+package defaults to `fms-gba`, 24 PPQN and zero offset. Regular LINK4BRICK ON/OFF governs the normal game
 wrappers as before. The optional bridge starts with the game session and ends
 with it; no always-running FMS launcher is installed.
 

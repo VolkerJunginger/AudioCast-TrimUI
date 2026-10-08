@@ -64,7 +64,7 @@ struct Canvas {
     }
   }
   void draw(const Menu& m) {
-    rect(0,0,W,H,0xff101820);text(48,45,"AUDIOCAST",7,0xff81e4b3);text(48,118,"SETTINGS",3,0xffa8bac3);
+    rect(0,0,W,H,0xff101820);text(48,45,"LINK4BRICK",7,0xff81e4b3);text(48,118,"SETTINGS",3,0xffa8bac3);
     const std::string rows[3]={std::string("ENABLED: ")+(m.enabled?"ON":"OFF"),std::string("LINK AUDIO: ")+(m.audio?"ON":"OFF"),std::string("CLOCK: ")+m.labels[m.protocol]};
     for(int i=0;i<3;i++) { rect(36,184+i*108,952,88,i==m.row?0xff244a40:0xff1a2830);
       if(i==m.row) { rect(36,184+i*108,8,88,0xff81e4b3); }
@@ -109,7 +109,7 @@ int main(int argc,char** argv) {
     if(argc>=3&&!strcmp(argv[1],"--render")){canvas.draw(m);canvas.save(argv[2]);return 0;}
     if(argc>=3&&!strcmp(argv[1],"--change")){m.row=std::atoi(argv[2]);if(m.row<0||m.row>2)return 2;m.change();std::puts(m.message.c_str());return m.message.find("SAVED")==0?0:1;}
     SDL s;if(s.Init(0x20|0x2000))throw std::runtime_error(s.GetError());
-    auto window=s.CreateWindow("AudioCast",0x2fff0000,0x2fff0000,W,H,0x1005);if(!window)throw std::runtime_error(s.GetError());
+    auto window=s.CreateWindow("LINK4BRICK",0x2fff0000,0x2fff0000,W,H,0x1005);if(!window)throw std::runtime_error(s.GetError());
     auto renderer=s.CreateRenderer(window,-1,2|4);if(!renderer)renderer=s.CreateRenderer(window,-1,1);if(!renderer)throw std::runtime_error(s.GetError());
     s.RenderSetLogicalSize(renderer,W,H);auto texture=s.CreateTexture(renderer,372645892,1,W,H);if(!texture)throw std::runtime_error(s.GetError());
     if(auto mappings=s.RWFromFile("/usr/trimui/gamecontrollerdb.txt","rb"))s.GameControllerAddMappingsFromRW(mappings,1);
@@ -127,5 +127,5 @@ int main(int argc,char** argv) {
     }
     if(controller) { s.GameControllerClose(controller); }
     s.DestroyTexture(texture);s.DestroyRenderer(renderer);s.DestroyWindow(window);s.Quit();return 0;
-  }catch(const std::exception& e){std::fprintf(stderr,"AudioCast settings: %s\n",e.what());return 1;}
+  }catch(const std::exception& e){std::fprintf(stderr,"LINK4BRICK settings: %s\n",e.what());return 1;}
 }

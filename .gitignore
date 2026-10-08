@@ -13,6 +13,8 @@ Apps/AudioCast/bin/
 Apps/AudioCast/enabled
 Apps/AudioCast/launchers.list
 Apps/AudioCast/icon*.png
+!Apps/AudioCast/icon-on.png
+!Apps/AudioCast/icon-off.png
 mgba/
 mgba-build/
 clock-test
