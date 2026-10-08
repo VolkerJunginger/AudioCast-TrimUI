@@ -20,7 +20,7 @@ for size in [20,24,30,40]:
   entries.append((len(pixels),w,h,x,y,round(font.getlength(c))))
   pixels.extend(image.tobytes())
 (out/'font.bin').write_bytes(pixels)
-header='// Generated from Inter under SIL OFL 1.1. See LICENSES/Inter-OFL.txt.\nstruct Glyph { unsigned offset; int w,h,x,y,advance; };\nstatic constexpr Glyph glyphs[][95]={\n'
+header=f'// Generated from Inter under SIL OFL 1.1. See LICENSES/Inter-OFL.txt.\nstatic constexpr unsigned kFontBytes={len(pixels)};\nstruct Glyph {{ unsigned offset; int w,h,x,y,advance; }};\nstatic constexpr Glyph glyphs[][95]={{\n'
 for i in range(4):header+='{' + ','.join('{'+','.join(map(str,e))+'}' for e in entries[i*95:(i+1)*95])+'},\n'
 header+='};\n';(root/'src/ui_font.h').write_text(header)
 logo=Image.open(root/'Apps/LINK4BRICK/icon-on.png').convert('RGBA').resize((80,80),Image.Resampling.LANCZOS)

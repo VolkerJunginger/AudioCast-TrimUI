@@ -39,7 +39,7 @@ with tempfile.TemporaryDirectory() as t:
     assert json.loads(z.read('Apps/LINK4BRICK/config.json'))['label']=='LINK4BRICK'
     assert b'PROTOCOL=fms-gba\n' in z.read('Apps/LINK4BRICK/cable/config.txt')
     assert 'Apps/LINK4BRICK/enabled' not in z.namelist() and 'Apps/LINK4BRICK/launchers.list' not in z.namelist()
-    assert len(z.read('Apps/LINK4BRICK/ui/font.bin'))==127871
+    assert 100000<len(z.read('Apps/LINK4BRICK/ui/font.bin'))<200000
     assert len(z.read('Apps/LINK4BRICK/ui/logo.rgba'))==25600
     assert b'AUDIO_BUFFER_MS=60' in z.read('Apps/LINK4BRICK/settings.txt')
     for n in bins:assert (z.getinfo('Apps/LINK4BRICK/bin/'+n).external_attr>>16)&0o111

@@ -107,6 +107,7 @@ jobs:
           git -c safe.directory="$PWD" archive HEAD | tar -x -C source
           cp -a link mgba assets source/
           cp -a Apps/LINK4BRICK/ui source/Apps/LINK4BRICK/
+          cp src/ui_font.h source/src/ui_font.h
           find source -name .git -prune -exec rm -rf {} +
           # Upstream emulator test fixtures are not needed to rebuild this core.
           rm -rf source/mgba/cinema

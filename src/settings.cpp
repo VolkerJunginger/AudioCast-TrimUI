@@ -68,7 +68,7 @@ struct Canvas {
   Canvas() {
     auto read=[](const char* path) { std::ifstream f(path,std::ios::binary);return std::vector<unsigned char>(std::istreambuf_iterator<char>(f),{}); };
     font=read("ui/font.bin");logo=read("ui/logo.rgba");
-    if(font.size()!=127871||logo.size()!=80*80*4)throw std::runtime_error("LINK4BRICK menu artwork unavailable");
+    if(font.size()!=kFontBytes||logo.size()!=80*80*4)throw std::runtime_error("LINK4BRICK menu artwork unavailable");
   }
   void blend(int x,int y,unsigned color,unsigned alpha) {
     if(x<0||x>=W||y<0||y>=H)return;
