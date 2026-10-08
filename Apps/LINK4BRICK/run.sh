@@ -29,7 +29,7 @@ cleanup() {
     wait "$SESSION" 2>/dev/null || :
   fi
   [ "$OWN_FIFO" = 0 ] || rm -f "$FIFO"
-  rm -f "$AC_RUN/alsa.conf" "$AC_RUN/ra.cfg" "$AC_RUN/override.cfg"
+  rm -f "$AC_RUN/alsa.conf" "$AC_RUN/ra.cfg" "$AC_RUN/override.cfg" "$AC_RUN/clock.sock" "$AC_RUN/clock.sock.ready"
   rmdir "$AC_RUN" 2>/dev/null || :
 }
 trap cleanup EXIT
@@ -57,12 +57,24 @@ audio_driver = "alsa"
 audio_device = "ac_game"
 audio_out_rate = "48000"
 audio_enable = "true"
+audio_latency = "65"
 log_to_file = "false"
 config_save_on_exit = "false"
 auto_overrides_enable = "false"
 EOF
 cp "$AC_SD/RetroArch/retroarch.cfg" "$AC_RUN/ra.cfg" || exit 1
 export AC_APP AC_SD AC_RUN
+AUDIOCAST_AUDIO_RECOVERY=1
+unset AUDIOCAST_CLOCK_REFRESH_MS AUDIOCAST_CLOCK_MODE
+export AUDIOCAST_AUDIO_RECOVERY
+if [ -r "$AC_APP/cable/env.sh" ]; then . "$AC_APP/cable/env.sh"; fi
+AUDIOCAST_LINK_AUDIO=1
+if [ -r "$AC_APP/settings.sh" ]; then
+  ac_link_audio=$(/bin/sh "$AC_APP/settings.sh" audio-value)
+  case "$ac_link_audio" in 0|1) AUDIOCAST_LINK_AUDIO="$ac_link_audio";; esac
+  unset ac_link_audio
+fi
+export AUDIOCAST_LINK_AUDIO
 # The child preflight sets ALSA_CONFIG_PATH only after the route opens cleanly.
 "$AC_APP/bin/audiocast-session" "$AC_APP/bin/linkaudio-send" "$FIFO" \
   /bin/sh "$AC_APP/start-game.sh" "$SCRIPT" "$@" &

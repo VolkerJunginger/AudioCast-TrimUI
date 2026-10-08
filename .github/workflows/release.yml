@@ -1,15 +1,9 @@
-name: Build and release
+name: Build and release LINK4BRICK
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
-    inputs:
-      publish:
-        description: Publish the verified v0.2.2 release
-        required: true
-        default: false
-        type: boolean
 permissions:
   contents: read
 jobs:
@@ -17,21 +11,48 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Linux audio test dependencies
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
-      - name: Fetch pinned Ableton Link
+      - name: Install verification dependencies
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev python3-pil
+      - name: Fetch pinned Link and menu assets
         run: |
           git clone https://github.com/Ableton/link.git link
-          cd link
-          git checkout 902aef95bf94af49746fdda5369b42cdcfa1e6d2
-          git submodule update --init --recursive
-      - name: Build and test launcher routing, ALSA and process cleanup
+          git -C link checkout 902aef95bf94af49746fdda5369b42cdcfa1e6d2
+          git -C link submodule update --init --recursive
+          python3 tools/prepare_link.py link
+          python3 tools/make_ui_assets.py
+      - name: Verify audio routing, settings and live Link
         run: |
-          set -eu
-          cmake -S . -B host-build -DLINK_DIR="$PWD/link"
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror tests/clock_test.c -lm -o clock-test
+          ./clock-test
+          c++ -std=c++17 -Wall -Wextra -Werror tests/pcm_timeline_test.cpp -o pcm-timeline-test
+          ./pcm-timeline-test
+          cmake -S . -B host-build -DLINK_DIR="$PWD/link" -DAUDIOCAST_CLOCK_TESTS=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build host-build -j2
           python3 tools/verify.py --build host-build
-          for script in Apps/AudioCast/*.sh; do sh -n "$script"; done
+          python3 tests/settings_test.py host-build
+          python3 tests/virtual_cable_launcher_test.py
+          python3 tests/clock_only_test.py host-build
+          python3 tests/sender_clock_test.py host-build
+          python3 tests/sender_audio_test.py host-build
+          for script in Apps/LINK4BRICK/*.sh Apps/LINK4BRICK/cable/*.sh; do sh -n "$script"; done
+      - name: Verify GBA core timing and fixed-rate audio
+        run: |
+          python3 tools/prepare_mgba.py mgba
+          cmake -S mgba -B mgba-build -C sync/mgba-options.cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake --build mgba-build -j2
+          python3 tools/build_probe.py mgba-build --synthetic --output core-clock-test
+          ./core-clock-test
+          python3 tools/build_probe.py mgba-build --serial --output serial-clock-test
+          ./serial-clock-test
+          python3 tools/build_probe.py mgba-build --stepper --output stepper-clock-test
+          timeout 60 ./stepper-clock-test
+          python3 tools/build_probe.py mgba-build --audio --output audio-rate-test
+          ./audio-rate-test
+          cc -std=gnu11 -D_POSIX_C_SOURCE=200809L -I mgba/src/platform/libretro tests/libretro_lifecycle.c -ldl -o libretro-lifecycle
+          ./host-build/audiocast-core-probe mgba-build/mgba_libretro.so
+          ./libretro-lifecycle mgba-build/mgba_libretro.so
+      - name: Verify reversible Terminal installer
+        run: python3 tests/installer_test.py
   build:
     needs: verify
     runs-on: ubuntu-latest
@@ -39,64 +60,57 @@ jobs:
       image: ghcr.io/loveretro/tg5040-toolchain:latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch pinned Ableton Link
+      - name: Fetch pinned sources and generate menu assets
         run: |
+          apt-get update && apt-get install -y python3-pil qemu-user zip unzip
           git clone https://github.com/Ableton/link.git link
-          cd link
-          git checkout 902aef95bf94af49746fdda5369b42cdcfa1e6d2
-          git submodule update --init --recursive
-      - name: Build ARM64 StockUI tools
+          git -C link checkout 902aef95bf94af49746fdda5369b42cdcfa1e6d2
+          git -C link submodule update --init --recursive
+          python3 tools/prepare_link.py link
+          python3 tools/prepare_mgba.py mgba
+          python3 tools/make_ui_assets.py
+      - name: Build ARM64 app and private core
         run: |
-          set -eu
-          cmake -S . -B build -DLINK_DIR="$PWD/link" \
+          cmake -S . -B build -DLINK_DIR="$PWD/link" -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-g++
           cmake --build build -j2
-      - name: Install package tools
-        run: apt-get update && apt-get install -y zip unzip python3 python3-pil
-      - name: Package and verify StockUI ZIP
+          cmake -S mgba -B mgba-build -C sync/mgba-options.cmake \
+            -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER=/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-g++
+          cmake --build mgba-build -j2
+      - name: Verify ARM64 menu, core loading and frame execution
         run: |
-          set -eu
-          mkdir -p release/Apps/AudioCast/bin
-          install -m 0755 Apps/AudioCast/*.sh release/Apps/AudioCast/
-          install -m 0644 Apps/AudioCast/config.json release/Apps/AudioCast/
-          python3 tools/make_icon.py release/Apps/AudioCast/icon-on.png on
-          python3 tools/make_icon.py release/Apps/AudioCast/icon-off.png off
-          cp release/Apps/AudioCast/icon-off.png release/Apps/AudioCast/icon.png
-          install -m 0755 build/linkaudio-send build/audiocast-session build/alsa-probe build/audiocast-cksum release/Apps/AudioCast/bin/
-          install -m 0644 INSTALL.txt release/README.txt
-          install -m 0644 LICENSE release/LICENSE.txt
-          install -m 0644 THIRD_PARTY.md release/THIRD_PARTY.txt
-          mkdir -p release/LICENSES
-          install -m 0644 LICENSES/Ableton-Link.md release/LICENSES/
-          install -m 0644 link/modules/asio-standalone/asio/LICENSE_1_0.txt release/LICENSES/Asio.txt
-          cd release
-          zip -r ../AudioCast-StockUI-v0.2.2-GB-GBA.zip Apps README.txt LICENSE.txt THIRD_PARTY.txt LICENSES
-          cd ..
-          python3 tools/verify.py --package AudioCast-StockUI-v0.2.2-GB-GBA.zip
-          unzip -t AudioCast-StockUI-v0.2.2-GB-GBA.zip
-          sha256sum AudioCast-StockUI-v0.2.2-GB-GBA.zip > AudioCast-StockUI-v0.2.2-GB-GBA.zip.sha256
-      - name: Package corresponding source and checksums
+          /opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-gcc \
+            -std=gnu11 -D_POSIX_C_SOURCE=200809L -I mgba/src/platform/libretro \
+            tests/libretro_lifecycle.c -ldl -o build/libretro-lifecycle
+          L4B_SYSROOT=$(/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-gcc -print-sysroot)
+          (cd Apps/LINK4BRICK && qemu-aarch64 -cpu cortex-a53 -L "$L4B_SYSROOT" ../../build/audiocast-settings --render /tmp/link4brick-menu.ppm)
+          qemu-aarch64 -cpu cortex-a53 -L "$L4B_SYSROOT" build/audiocast-core-probe mgba-build/mgba_libretro.so
+          qemu-aarch64 -cpu cortex-a53 -L "$L4B_SYSROOT" build/libretro-lifecycle mgba-build/mgba_libretro.so
+      - name: Package verified StockUI app and corresponding source
         run: |
-          set -eu
-          tar --exclude='./.git' --exclude='*/.git' --exclude='./build' --exclude='./host-build' --exclude='./release' --exclude='./dist' --exclude='*.zip' --exclude='*.sha256' --exclude='__pycache__' -czf /tmp/AudioCast-v0.2.2-source.tar.gz .
-          mv /tmp/AudioCast-v0.2.2-source.tar.gz .
-          sha256sum AudioCast-StockUI-v0.2.2-GB-GBA.zip AudioCast-v0.2.2-source.tar.gz > SHA256SUMS
-          tar -tzf AudioCast-v0.2.2-source.tar.gz > /tmp/source-files.txt
-          grep -q './src/sender.cpp' /tmp/source-files.txt
-          grep -q './link/include/ableton/LinkAudio.hpp' /tmp/source-files.txt
-          grep -q './link/modules/asio-standalone/asio/LICENSE_1_0.txt' /tmp/source-files.txt
+          python3 tools/package_virtual_cable.py --build build --core mgba-build/mgba_libretro.so \
+            --link link --output dist/LINK4BRICK-StockUI-v1.0.0.zip
+          unzip -t dist/LINK4BRICK-StockUI-v1.0.0.zip
+          mkdir -p source
+          git -c safe.directory="$PWD" archive HEAD | tar -x -C source
+          cp -a link mgba assets source/
+          cp -a Apps/LINK4BRICK/ui source/Apps/LINK4BRICK/
+          cp src/ui_font.h source/src/ui_font.h
+          tar --exclude='*/.git' --exclude='./mgba/cinema' --exclude='*.log' --exclude='*.gba' --exclude='*.gb' --exclude='*.sav' --exclude='*.srm' --exclude='*.pak' -czf dist/LINK4BRICK-v1.0.0-source.tar.gz -C source .
+          cp tools/install.py dist/install_link4brick.py
+          cd dist
+          sha256sum LINK4BRICK-StockUI-v1.0.0.zip LINK4BRICK-v1.0.0-source.tar.gz install_link4brick.py > SHA256SUMS
+          sha256sum -c SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: STOCKUI-ONLY--AudioCast-v0.2.2-GB-GBA
-          path: |
-            AudioCast-StockUI-v0.2.2-GB-GBA.zip
-            AudioCast-StockUI-v0.2.2-GB-GBA.zip.sha256
-            AudioCast-v0.2.2-source.tar.gz
-            SHA256SUMS
+          name: LINK4BRICK-StockUI-v1.0.0
+          path: dist/
           if-no-files-found: error
   publish:
     needs: build
-    if: github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'push' && github.event.head_commit.message == 'Publish AudioCast StockUI v0.2.2'))
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -104,62 +118,41 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: STOCKUI-ONLY--AudioCast-v0.2.2-GB-GBA
+          name: LINK4BRICK-StockUI-v1.0.0
           path: dist
-      - name: Verify release assets again
+      - name: Recheck release assets
         working-directory: dist
         run: |
           sha256sum -c SHA256SUMS
-          sha256sum -c AudioCast-StockUI-v0.2.2-GB-GBA.zip.sha256
-          unzip -t AudioCast-StockUI-v0.2.2-GB-GBA.zip
-      - name: Publish stable release with verified ZIP and checksum
+          unzip -t LINK4BRICK-StockUI-v1.0.0.zip
+      - name: Publish stable LINK4BRICK v1.0.0
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const repo = context.repo;
-            const tag = 'stockui-v0.2.2';
+            const tag = 'v1.0.0';
             const body = fs.readFileSync('RELEASE_NOTES.md', 'utf8');
             let release;
-            try {
-              release = (await github.rest.repos.getReleaseByTag({...repo, tag})).data;
-            } catch (error) {
-              if (error.status !== 404) throw error;
+            try { release = (await github.rest.repos.getReleaseByTag({...repo, tag})).data; }
+            catch (e) { if (e.status !== 404) throw e; }
+            if (release && !release.draft) {
+              core.info('Stable release already published; leaving it unchanged.');
+              return;
             }
-            if (release) {
-              if (release.target_commitish !== context.sha)
-                throw new Error('Existing release belongs to another commit; refusing to overwrite.');
-              if (!release.draft) {
-                core.info('This release is already published; leaving it unchanged.');
-                return;
-              }
-            } else {
-              release = (await github.rest.repos.createRelease({
-                ...repo, tag_name: tag, target_commitish: context.sha,
-                name: 'AudioCast StockUI v0.2.2 — GB/GBA',
-                body, draft: true, prerelease: false
-              })).data;
-            }
-            const names = ['AudioCast-StockUI-v0.2.2-GB-GBA.zip',
-                           'AudioCast-StockUI-v0.2.2-GB-GBA.zip.sha256',
-                           'AudioCast-v0.2.2-source.tar.gz', 'SHA256SUMS'];
-            const assets = (await github.rest.repos.listReleaseAssets({
-              ...repo, release_id: release.id
+            if (release && release.target_commitish !== context.sha)
+              throw new Error('Draft belongs to another commit; refusing to overwrite.');
+            if (!release) release = (await github.rest.repos.createRelease({
+              ...repo, tag_name: tag, target_commitish: context.sha,
+              name: 'LINK4BRICK v1.0.0 — StockUI', body, draft: true, prerelease: false
             })).data;
-            for (const name of names) {
-              const old = assets.find(a => a.name === name);
-              if (old) await github.rest.repos.deleteReleaseAsset({...repo, asset_id: old.id});
-              const data = fs.readFileSync('dist/' + name);
+            const assets = (await github.rest.repos.listReleaseAssets({...repo, release_id: release.id})).data;
+            for (const name of ['LINK4BRICK-StockUI-v1.0.0.zip','LINK4BRICK-v1.0.0-source.tar.gz','install_link4brick.py','SHA256SUMS']) {
+              if (assets.some(a => a.name === name)) throw new Error('Draft asset already exists: '+name);
+              const data = fs.readFileSync('dist/'+name);
               await github.rest.repos.uploadReleaseAsset({
                 ...repo, release_id: release.id, name, data,
-                headers: {
-                  'content-type': name.endsWith('.zip') ? 'application/zip' : name.endsWith('.gz') ? 'application/gzip' : 'text/plain',
-                  'content-length': data.length
-                }
+                headers: {'content-type': name.endsWith('.zip') ? 'application/zip' : name.endsWith('.gz') ? 'application/gzip' : 'text/plain', 'content-length': data.length}
               });
             }
-            await github.rest.repos.updateRelease({
-              ...repo, release_id: release.id, body, draft: false,
-              prerelease: false, make_latest: 'true'
-            });
-            core.info('Published ' + release.html_url);
+            await github.rest.repos.updateRelease({...repo, release_id: release.id, body, draft: false, prerelease: false, make_latest: 'true'});

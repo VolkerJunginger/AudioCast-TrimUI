@@ -1,5 +1,5 @@
 #!/bin/sh
-# Enable only GB/GBA SD launch scripts. Never touch emulator binaries/configs.
+# Enable only GBA SD launch scripts. Never touch emulator binaries/configs.
 set -u
 umask 077
 APP="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)" || exit 1
@@ -91,10 +91,11 @@ restore() {
   echo "OFF: all managed launchers restored byte-for-byte."
 }
 case "${1:-toggle}" in
+  refresh-icon) exit 0 ;;
   off) restore; exit $? ;;
   toggle) if [ -f "$MANIFEST" ]; then restore; exit $?; fi ;;
   on) if [ -f "$MANIFEST" ]; then echo "Already installed; use off before reinstalling."; exit 1; fi ;;
-  *) echo "usage: control.sh [on|off|toggle]"; exit 2 ;;
+  *) echo "usage: control.sh [on|off|toggle|refresh-icon]"; exit 2 ;;
 esac
 check_helper || exit 1
 for binary in linkaudio-send audiocast-session alsa-probe; do
@@ -103,7 +104,7 @@ done
 [ -x "$SD/RetroArch/ra64.trimui" ] || { echo "StockUI RetroArch missing"; exit 1; }
 : >"$MANIFEST" || exit 1
 count=0
-for p in "$SD"/Emus/GB/launch*.sh "$SD"/Emus/GBA/launch*.sh; do
+for p in "$SD"/Emus/GBA/launch*.sh; do
   [ -f "$p" ] && [ ! -L "$p" ] || continue
   # StockUI uses simple directory names; do not patch custom unusual paths.
   relative="${p#"$SD"/}"
@@ -144,5 +145,5 @@ done
 rm -f "$LOCK/candidate"
 [ "$count" -gt 0 ] || { rm -f "$MANIFEST"; echo "No compatible launchers."; exit 1; }
 touch "$APP/enabled" || { restore; exit 1; }
-echo "ON: $count GB/GBA launchers. Launch .gb/.gba games normally; launch AudioCast again to restore."
+echo "ON: $count GBA launchers. Launch .gba games normally; open LINK4BRICK settings to disable."
 echo "Other systems are unchanged."

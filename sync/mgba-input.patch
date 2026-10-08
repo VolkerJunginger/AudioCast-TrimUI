@@ -1,0 +1,12 @@
+diff --git a/src/platform/libretro/libretro.c b/src/platform/libretro/libretro.c
+--- a/src/platform/libretro/libretro.c
++++ b/src/platform/libretro/libretro.c
+@@ -591,7 +591,7 @@
+ 			keys |= (!!inputCallback(0, RETRO_DEVICE_JOYPAD, 0, keymap[i])) << i;
+ 		}
+ 	}
+-	core->setKeys(core, keys);
++	core->setKeys(core, AudioCastClockInput(core, keys));
+ 
+ 	if (!luxSensorUsed) {
+ 		static bool wasAdjustingLux = false;

@@ -1,5 +1,29 @@
 # Release history
 
+## LINK4BRICK settings and GBA preview
+
+- Minimal grayscale settings with antialiased Inter type and updated maintainer artwork.
+- FMS GBA, FMS Clock and STEPPER modes only; managed launchers limited to GBA.
+- Adjustable RetroArch audio buffer: 0–150 ms in 10 ms steps, default 60 ms.
+- Folder-first migration to Apps/LINK4BRICK; internal names retained for compatibility.
+- Reversible Terminal installer preserves private states and audio preferences and restores managed GB launchers.
+
+
+## Unreleased — clock/settings preview
+
+- Add FMS CLOCK mode with selectable 1, 2, 3, 4, 6 and 8 PPQ; retain fixed-24 FMS GBA serial sync.
+- Add STEPPER GPIO interrupt clock with selectable 4, 6, 12, 24, 48 and 96 PPQ, and START queued to the next Link one.
+- Include final user-provided LINK4BRICK ON/OFF artwork unchanged.
+
+- App renamed LINK4BRICK; existing SD-card paths stay compatible.
+- Preserve supplied ON/OFF icons in packages and repair the active icon whenever settings open.
+
+- On-device settings for enabled state, Link audio and cable protocol.
+- Clock-only mode keeps Link tempo and the Brick speaker without advertising an audio channel.
+- Game Boy serial adapter for DMGo LINK IN, verified in emulation; device testing pending.
+- Retains device-tested FMS 24-PPQN tempo and queued downbeat transport; zero delay offset.
+
+
 ## 0.2.2 — StockUI GB/GBA
 
 - Added ON/OFF artwork following the app's activation marker.

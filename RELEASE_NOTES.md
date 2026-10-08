@@ -1,33 +1,16 @@
-## AudioCast v0.2.2 — StockUI for TrimUI Brick Hammer
+LINK4BRICK v1.0.0 is the stable StockUI release for TrimUI Brick Hammer.
 
-**Game Boy audio on your Brick and Push, together.**
+It brings together the device-confirmed FMS GBA audio, live Link tempo following and START queued to the next four-beat “one,” with the final icons and minimal settings page. The working audio and clock implementation is preserved.
 
-This is the first release from AudioCast's dedicated repository. It contains the tested StockUI GB/GBA implementation with updated documentation and licensing; the game-audio code is unchanged.
+- Link Audio to Push as **Brick Out**, alongside normal speaker audio.
+- Clock-only mode by switching Link audio OFF.
+- FMS GBA at 24 PPQ, FMS Clock at 1/2/3/4/6/8 PPQ, and STEPPER at 4/6/12/24/48/96 PPQ.
+- Fixed **65 ms** audio buffer; no delay-compensation or buffer controls.
+- One **LINK4BRICK** StockUI app, with no runtime log files or separate FMS launcher.
+- Verified Terminal installer with settings preservation, diagnostic-helper cleanup, backups and undo.
 
-### Included
+Download **LINK4BRICK-StockUI-v1.0.0.zip** and **install_link4brick.py** into the same folder, then follow the [installation guide](https://github.com/VolkerJunginger/LINK4BRICK/blob/main/INSTALL.txt). The source archive includes the pinned Link and mGBA sources and generated menu assets. **SHA256SUMS** verifies all three downloads.
 
-- GB `.gb` and GBA `.gba` casting from the normal StockUI menus.
-- 48 kHz stereo Link Audio channel **Brick Out**, with local speaker playback.
-- **ON:** turquoise link and filled dot. **OFF:** gray link and hollow dot.
-- SD-card-only installation, verified launcher restoration and no runtime log files.
-- Installation/recovery guide, dependency notices and corresponding source bundle.
+FMS GBA has been confirmed on the user's Brick Hammer and Push. STEPPER's sync path is covered by emulator tests; individual ROM versions need hardware confirmation. Game Boy sync, other firmware and general multiplayer Game Link are outside this release. Compensate transport latency on Push if needed.
 
-### Download
-
-Choose **AudioCast-StockUI-v0.2.2-GB-GBA.zip** for installation. `SHA256SUMS` verifies the installer and source bundle. The source bundle is for developers; it is not an SD-card installer.
-
-### Install or upgrade
-
-1. Quit your game and switch AudioCast **OFF before upgrading**.
-2. Extract the installer at the SD-card root, merging `Apps/AudioCast`.
-3. Safely eject the card, reboot and connect the Brick and Push to the same local Wi-Fi network.
-4. Launch **AudioCast** once to enable it, then start a GB/GBA game.
-5. Select **Brick Out** on Push. Reselect after changing games if needed.
-
-See the [README](https://github.com/VolkerJunginger/AudioCast-TrimUI#installation) and [recovery guide](https://github.com/VolkerJunginger/AudioCast-TrimUI/blob/main/docs/TROUBLESHOOTING.md) for details. Preserve launcher backups if an upgrade was performed while AudioCast was ON.
-
-### Verified
-
-GB/GBA playback, speaker output and icon switching were confirmed on the maintainer's Brick Hammer with Push. CI checks ALSA/FIFO routing, sender stalls, cleanup, checksums, reversible launchers, no-log behavior, state icons and the ARM64 ZIP contents.
-
-The icon indicates activation, not receiver connectivity. Other emulators and menu sounds are outside this release's scope. Automatic RetroArch core/game configuration overrides are temporarily disabled during casting; their files remain unchanged.
+SD-card-only and reversible. No ROMs, firmware, RetroArch binary, minarch or global ALSA configuration changes. GPL-2.0-or-later with the private mGBA integration under MPL-2.0.

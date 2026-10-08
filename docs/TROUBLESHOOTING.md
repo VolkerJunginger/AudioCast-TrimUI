@@ -1,47 +1,29 @@
-# Troubleshooting
+# Troubleshooting LINK4BRICK
 
-## Brick Out does not appear
+## No Brick Out channel
 
-1. Quit the game, reboot the Brick, and reconnect it to the same local network as Push.
-2. Check that AudioCast shows the turquoise ON icon. Launch the app once if it is OFF.
-3. Start a `.gb` or `.gba` game from its normal StockUI entry. AudioCast does not advertise a game channel while sitting in the menu.
-4. Refresh/reselect **Brick Out** on Push. Each game session creates a new channel.
-5. If the app will not turn ON after an upgrade, check for missing activation records as described below.
+Enable Link on Push and connect both devices to the same network. Launch the game after enabling LINK4BRICK and Link audio. The Brick Out channel exists during a game session, so select it again after changing games. A router that blocks peer discovery can prevent the connection.
 
-The ON icon indicates activation, not an established network connection. Other emulators and menu sounds are not supported by this release.
+## Audio works but sync does not
 
-## The icon does not refresh
+Match the LINK4BRICK sync mode and PPQ to the program's input. For the hardware-confirmed path, select **FMS GBA / 24 PPQ** and **SYNC IN / GBA** in FMS, then press START. The next four-beat Link “one” starts playback. FMS Clock and STEPPER use different cable signals; selecting one for the other will not work.
 
-Leave and reopen Apps. If needed, reboot. Icon switching was confirmed on the tested Hammer, but StockUI may retain cached artwork.
+Use the normal **Games → GBA** list. Sync requires the mGBA launcher; an alternate emulator core may still stream audio but cannot provide this virtual cable. Game Boy and general multiplayer link connections are not supported.
 
-## Incomplete upgrade or missing activation records
+## Audio is delayed
 
-If `Apps/AudioCast/enabled` and `launchers.list` are missing, but GB/GBA launchers still have adjacent `.audiocast-original` and `.audiocast-run` files, the app folder may have been replaced while casting was enabled. The launcher wrappers fall back to the originals, while activation refuses to overwrite existing backups.
+The audio buffer is fixed at 65 ms. Network transport and receiver buffering add delay. Compensate incoming audio on Push; this release does not alter the clock with delay compensation. Match PPQ and avoid fast-forward, rewind or run-ahead during sync.
 
-**Do not delete the backups to force activation.** They are the original launchers you need for recovery.
+## Icon looks wrong
 
-1. Shut down the Brick and back up `Apps/AudioCast`, `Emus/GB` and `Emus/GBA` to your computer.
-2. For each affected launcher, inspect the current file. An AudioCast wrapper starts with `# AudioCast v0.2b managed wrapper` and calls AudioCast's `run.sh` or the adjacent `.audiocast-original`.
-3. Restore only confirmed AudioCast wrappers from their **matching** `.audiocast-original` files. If an original is missing, edited or uncertain, stop and seek help. Never substitute another emulator's launcher.
-4. Verify each restored file is byte-for-byte identical to its backup. Only then remove that launcher's `.audiocast-original` and `.audiocast-run` companions from the SD card. Retain the computer backup.
-5. Install the latest app with casting OFF, reboot, then enable it once and start a game.
+The ON/OFF icon shows enabled launcher routing, rather than peer connectivity. StockUI may cache images. Leave and reopen Apps, or reboot after an update. The release uses the user's final ON/OFF artwork.
 
-On macOS, copying Mac-specific file flags to an SD filesystem can fail with “Invalid argument.” Use a file-content-only copy when restoring; Mac metadata is unnecessary for these launchers. Do not run the Brick's app scripts on your Mac.
+## A game falls back to its original core
 
-The development repair was specific to one verified card and is deliberately not shipped as a universal recovery script.
+Close the game and reboot to clear stale temporary sessions. Confirm the complete package was installed using the Terminal installer and that LINK4BRICK is enabled. A failed audio preflight or private-core readiness check deliberately falls back to the normal launcher.
 
-## Turn off and uninstall
+## Updating or removing the app
 
-Quit the game and launch AudioCast again. OFF restores known original launcher bytes. Only after successful restoration should you delete `Apps/AudioCast`.
+Use the Terminal installer for updates; it preserves settings and launcher backups. If replacing the old AudioCast app, turn that app OFF before installing LINK4BRICK. Turn LINK4BRICK OFF before removing it or editing GBA launchers.
 
-An OFF icon means the activation marker is absent. If restoration encountered an edited launcher or damaged backup, casting is disabled but those recovery files are retained. Preserve them and inspect before uninstalling.
-
-## Audio drops out
-
-Check Wi-Fi signal and local network connectivity. Start with the direct Push Wi-Fi setup used in hardware testing. AudioCast preserves the speaker path if the network sender stalls, but this cannot guarantee uninterrupted wireless playback.
-
-## Reporting a problem
-
-Include the device and firmware, AudioCast version, GB or GBA core, whether the Brick speaker works, icon state, and whether **Brick Out** appears on Push. Mention whether this followed an upgrade.
-
-Current releases do not write logs. Please do not upload ROMs, saves, Wi-Fi credentials or full SD-card backups. Older test logs may contain game paths; review them before sharing.
+An OFF operation preserves edited launchers and damaged/missing backups for review. Never delete `.audiocast-original` files prematurely; these compatibility names still contain your original launchers. Retain the local Terminal installer journals for undo. Existing test logs are left untouched; the release creates no new runtime logs.
