@@ -233,7 +233,11 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
     ac.active = ac_clock_valid(&ac.clock, now) && ac.clock.peers > 0;
     if (!ac.active) {
         if (ac.serial && ac.serialPlaying && serialSend(&ac, 0x03, 0)) { ac.serialPlaying = 0; ac.stops++; }
-        if ((ac.serial || ac.stepper || ac.fmsClock) && wasActive) { ac.wanted = 0; ac.startBeat = NAN; ac.serialPlaying = 0; }
+        if ((ac.serial || ac.stepper || ac.fmsClock) && wasActive) {
+            ac.wanted = 0; ac.startBeat = NAN;
+            /* Preserve the serial STOP retry if FMS was not yet armed. */
+            if (!ac.serial) ac.serialPlaying = 0;
+        }
         if (wasActive) ac.expired++;
         mTimingDeschedule(&g->timing, &ac.rise);
         mTimingDeschedule(&g->timing, &ac.fall); level(&ac, 0);
