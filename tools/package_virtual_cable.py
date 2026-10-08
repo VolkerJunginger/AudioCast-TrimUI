@@ -21,7 +21,7 @@ with tempfile.TemporaryDirectory() as t:
   config=app/'cable/config.txt';config.write_text('PROTOCOL=fms-gba\nPPQN=24\nOFFSET_US=0\n')
   meta=json.loads((app/'config.json').read_text());meta['description']='Experimental virtual GBA clock cable and GB/GBA audio casting'
   (app/'config.json').write_text(json.dumps(meta,indent=2)+'\n')
-  shutil.copyfile(app/'icon-off.png',app/'icon.png')
+  shutil.copyfile(app/'icon-on.png',app/'icon.png')
   for p in app.rglob('*.sh'):p.chmod(0o755);subprocess.run(['sh','-n',str(p)],check=True)
   shutil.copyfile(ROOT/'docs/VIRTUAL_LINK_CABLE.md',stage/'README.txt')
   shutil.copyfile(ROOT/'THIRD_PARTY.md',stage/'THIRD_PARTY.txt');(stage/'LICENSES').mkdir()

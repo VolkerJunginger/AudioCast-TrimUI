@@ -60,7 +60,7 @@ jobs:
           install -m 0755 Apps/AudioCast/*.sh release/Apps/AudioCast/
           install -m 0644 Apps/AudioCast/config.json release/Apps/AudioCast/
           install -m 0644 Apps/AudioCast/icon-on.png Apps/AudioCast/icon-off.png release/Apps/AudioCast/
-          cp release/Apps/AudioCast/icon-off.png release/Apps/AudioCast/icon.png
+          cp release/Apps/AudioCast/icon-on.png release/Apps/AudioCast/icon.png
           install -m 0755 build/linkaudio-send build/audiocast-session build/alsa-probe build/audiocast-cksum build/audiocast-settings release/Apps/AudioCast/bin/
           install -m 0644 INSTALL.txt release/README.txt
           install -m 0644 LICENSE release/LICENSE.txt

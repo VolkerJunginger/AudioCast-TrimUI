@@ -324,7 +324,7 @@ def package(path):
             assert icon.size == (256, 256) and icon.mode in ("RGBA", "RGB", "P")
             icon.load()
             assert icon.convert("RGBA").getextrema()[3][1] == 255
-        assert z.read("Apps/AudioCast/icon.png") == z.read("Apps/AudioCast/icon-off.png")
+        assert z.read("Apps/AudioCast/icon.png") == z.read("Apps/AudioCast/icon-on.png")
         assert z.read("Apps/AudioCast/icon-on.png") != z.read("Apps/AudioCast/icon-off.png")
         for script in ["launch.sh", "run.sh"]:
             assert "exec >/dev/null 2>&1" in z.read("Apps/AudioCast/" + script).decode()
