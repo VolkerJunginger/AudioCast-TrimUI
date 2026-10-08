@@ -1,7 +1,0 @@
-#!/bin/sh
-# Safe audio preflight fallback: use the user's installed GBA launcher/core.
-AC_SD="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)" || exit 1
-LAUNCHER="$AC_SD/Emus/GBA/launch.sh"
-[ ! -r "$LAUNCHER.audiocast-original" ] || LAUNCHER="$LAUNCHER.audiocast-original"
-unset AUDIOCAST_CLOCK_SOCKET AUDIOCAST_PPQN AUDIOCAST_OFFSET_US
-exec /bin/sh "$LAUNCHER" "$@"

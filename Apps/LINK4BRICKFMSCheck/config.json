@@ -1,7 +1,0 @@
-{
-  "label": "FMS Launch Test",
-  "description": "Check the private FMS core using working AudioCast; no clock sync",
-  "launch": "launch.sh",
-  "icontop": "icon.png",
-  "icon": ""
-}

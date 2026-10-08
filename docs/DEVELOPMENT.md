@@ -1,72 +1,43 @@
-# Development
+# Building LINK4BRICK
 
-## Layout
+The single [release workflow](../.github/workflows/release.yml) verifies the source, builds ARM64 binaries and the private mGBA core, packages a StockUI ZIP and publishes the stable release from `main`. Pull requests run the same verification and packaging without publishing.
 
-- `Apps/LINK4BRICK/`: the StockUI app and reversible game-launcher scripts.
-- `src/sender.cpp`: 48 kHz stereo Link Audio sender.
-- `src/session.cpp`: supervised FIFO relay and process cleanup.
-- `src/checksum.cpp`: bundled POSIX-compatible checksum helper.
-- `src/alsa_probe.cpp`: real ALSA capability/preflight probe.
-- `tools/verify.py`: launcher, checksum, Linux audio/session and ZIP checks.
-- `tools/make_icon.py`: original ON/OFF artwork, rendered with Pillow at build time.
-- `.github/workflows/release.yml`: host verification, ARM64 build and release packaging.
+## Pinned inputs
 
-## Audio path
+- Ableton Link: `902aef95bf94af49746fdda5369b42cdcfa1e6d2`, including its pinned submodules.
+- mGBA: `3a5e34be33dc7f8f707e5bc9db69e8a430046f21`, patched by `tools/prepare_mgba.py` with the MPL-2.0 integration under `sync/`.
+- Inter menu font: pinned and checksum-verified by `tools/make_ui_assets.py`.
+- ARM64 toolchain: `ghcr.io/loveretro/tg5040-toolchain:latest`; the workflow documents its compiler paths.
 
-```mermaid
-flowchart LR
-  RA[StockUI RetroArch: GB / GBA] --> ALSA[Private ALSA configuration]
-  ALSA --> Speaker[Brick speaker]
-  ALSA --> FIFO[Temporary PCM FIFO]
-  FIFO --> Relay[Supervised nonblocking relay]
-  Relay --> Sender[Link Audio sender]
-  Sender --> Push[Push: Brick Out]
-```
+The corresponding source archive includes fetched Link/mGBA sources, patches, licenses, Inter input font and the exact generated font header/atlas. The project checkout intentionally omits build caches and generated UI assets.
 
-Only the game process receives `ALSA_CONFIG_PATH`. The configuration and FIFO live under `/tmp`; the existing RetroArch binary is invoked with a temporary configuration copy. The relay drains the FIFO even if its sender stalls. Cleanup targets owned processes only.
+## Build commands
 
-The app wraps compatible `Emus/GB/launch*.sh` and `Emus/GBA/launch*.sh` files, preserving adjacent originals and a checksum manifest. It does not rewrite other systems, firmware or minarch. Internal `v0.2b` names remain for compatibility.
-
-## Linux host verification
-
-Install a C++17 compiler, CMake, Python 3, Git and ALSA development files. On Ubuntu:
+On Linux, install CMake, a C/C++ compiler, ALSA development headers, Python 3 and Pillow. Fetch Link and initialize its submodules, then:
 
 ```sh
-sudo apt-get install build-essential cmake git python3 libasound2-dev python3-pil
-git clone https://github.com/Ableton/link.git link
-git -C link checkout 902aef95bf94af49746fdda5369b42cdcfa1e6d2
-git -C link submodule update --init --recursive
-cmake -S . -B host-build -DLINK_DIR="$PWD/link"
+python3 tools/prepare_link.py link
+python3 tools/make_ui_assets.py
+cmake -S . -B host-build -DLINK_DIR="$PWD/link" -DAUDIOCAST_CLOCK_TESTS=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build host-build -j2
 python3 tools/verify.py --build host-build
+python3 tests/installer_test.py
+python3 tools/prepare_mgba.py mgba
+cmake -S mgba -B mgba-build -C sync/mgba-options.cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+cmake --build mgba-build -j2
 ```
 
-The ALSA integration test substitutes a null speaker for the physical codec; it exercises real ALSA plug/file routing, the FIFO, session supervision and sender. It does not prove Wi-Fi delivery or device sound. Hardware playback and icon switching were separately confirmed by the maintainer on a Brick Hammer and Push.
-
-Launcher-only tests can run without compiling native tools:
+Use the cross-compiler arguments from the workflow for installable ARM64 binaries. Host builds are for automated tests only. Package with:
 
 ```sh
-python3 tools/verify.py
+python3 tools/package_virtual_cable.py --build build --core mgba-build/mgba_libretro.so --link link --output dist/LINK4BRICK-StockUI-v1.0.0.zip
+python3 tools/verify.py --package dist/LINK4BRICK-StockUI-v1.0.0.zip
 ```
 
-## ARM64 release
+## Verification and release scope
 
-The GitHub workflow uses `ghcr.io/loveretro/tg5040-toolchain:latest` and the pinned Link commit above, including its submodules. The toolchain image tag is mutable, so builds are not claimed to be byte-for-byte reproducible.
+Checks exercise real ALSA/FIFO routing, sender stalls/exits, child cleanup, launcher checksum failures/restoration, clock-only settings, live Link tempo changes, fixed-rate PCM, FMS serial START and STEPPER interrupts. ARM64 menu/core execution is checked with QEMU. Installer tests cover fresh installation, updates, exact undo, interrupted writes, symlinks, corruption and unrelated-file preservation.
 
-Every build runs host checks before cross-compiling. Packaging verifies ZIP integrity, exact file contents, ARM64 executables, executable permissions, PNG dimensions and initial OFF artwork. Installers are StockUI ZIPs; the workflow never creates `.pak` files.
+Retired standalone FMS launch/probe apps and private-ROM test tooling are absent from the stable release source. The successful sender/core implementation and regression coverage are preserved. Some historical protocol helpers remain internally for compatibility; they are not offered as supported settings. Internal `audiocast-*` binaries, environment keys and launcher backup names are retained to avoid breaking recovery. Product and app folder names are LINK4BRICK.
 
-The release includes the installer, checksums and a source bundle containing the app and pinned Link/submodule sources. Build-time dependencies (compiler, CMake, Pillow and OS development packages) are not installed on the Brick.
-
-Pushes to `main` and pull requests run verification. Publishing requires a manual workflow dispatch with **publish** selected, or the initial repository-import commit named `Publish AudioCast StockUI v0.2.2`. Published releases are never overwritten automatically. Update the release version and notes before publishing a subsequent version.
-
-## Migration provenance
-
-The initial dedicated-repository import comes from `VolkerJunginger/Testing-Github` commit `4142b969a368bae6014a2d21194067ebaf31d595` (StockUI v0.2.2). Production app scripts and native source are retained without behavioral edits. The migration changes source layout, documentation and packaging only.
-
-The old repository retains historical NextUI experiments and earlier capability tests. Personal card snapshots, logs, ROMs and the one-card repair script are not part of this project.
-
-## Current LINK4BRICK menu assets
-
-Before building a fresh checkout, install Pillow and run `python3 tools/make_ui_assets.py`. The generator downloads the pinned Inter font only if it is missing, verifies its SHA-256 and produces the menu atlas, display logo and matching `src/ui_font.h`. The full corresponding source bundle contains that font, its SIL OFL license and the exact generated header used for the build. CMake then builds the settings binary normally. Font metrics can differ by FreeType/Pillow version; the menu validates against its own generated atlas size rather than a Mac-specific value.
-
-The runtime folder is `Apps/LINK4BRICK`; internal executable and environment names are retained in this folder-first migration. Current modes are FMS GBA, STEPPER and FMS Clock. Launcher management is GBA-only. Temporary RetroArch ALSA latency is fixed at 65 ms; older buffer preferences are ignored. See the current README and sync guide instead of historical experimental app instructions.
+Do not publish ROMs, user saves, card backups or test logs. Runtime diagnostics are disabled in the production app. Readiness and checksum checks are essential runtime safeguards and must remain.

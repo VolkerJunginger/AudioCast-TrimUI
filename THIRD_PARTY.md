@@ -1,6 +1,6 @@
 # License and third-party notices
 
-AudioCast code and original icon artwork are copyright 2026 Volker Junginger and distributed under **GPL-2.0-or-later**. See [LICENSE](LICENSE). This program is provided without warranty.
+LINK4BRICK code and original icon artwork are copyright 2026 Volker Junginger and distributed under **GPL-2.0-or-later**. See [LICENSE](LICENSE). This program is provided without warranty.
 
 ## Ableton Link
 
@@ -18,21 +18,21 @@ Upstream source: https://github.com/chriskohlhoff/asio
 
 The ARM64 binaries are built with `ghcr.io/loveretro/tg5040-toolchain:latest` and statically link libstdc++/libgcc using the toolchain's GCC runtime libraries. GCC's runtime components have their own license terms and runtime exceptions; see https://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html and the toolchain's upstream sources at https://github.com/loveretro/tg5040-toolchain.
 
-ALSA is loaded from the device at runtime; no firmware or ALSA library is bundled. Pillow is used to render the original app icons during the build and is not shipped in the app.
+ALSA is loaded from the device at runtime; no firmware or ALSA library is bundled. Pillow is used to generate menu typography during the build and is not shipped in the app.
 
 The source release includes this project's source and the exact Link/Asio sources fetched by the workflow. The build workflow and developer guide document the toolchain and commands.
 
-Ableton, Link, Push and TrimUI names identify compatible technology/devices. AudioCast is an independent project and is not endorsed by Ableton or TrimUI. Its icons are original artwork, not official vendor logos.
+Ableton, Link, Push and TrimUI names identify compatible technology/devices. LINK4BRICK is an independent project and is not endorsed by Ableton or TrimUI. Its icons are original artwork, not official vendor logos.
 
-## Experimental FMS sync core
+## Private GBA sync core
 
-The separate FMS Link Sync preview uses mGBA at commit
+LINK4BRICK uses mGBA at commit
 `3a5e34be33dc7f8f707e5bc9db69e8a430046f21`, under the Mozilla Public License 2.0.
 See `LICENSES/mGBA-MPL-2.0.txt`. The compiled inih parser is BSD licensed;
 its notice is in `LICENSES/mGBA-inih.txt`. Its integration patch and `sync/mgba-clock.c/.h`
-are supplied under MPL-2.0. The clock protocol header and the remaining AudioCast
-components use GPL-2.0-or-later. Corresponding preview source contains the pinned
-mGBA checkout, patch, and all additions. FMS and DMGo are not distributed.
+are supplied under MPL-2.0. The clock protocol header and the remaining LINK4BRICK
+components use GPL-2.0-or-later. Corresponding release source contains the pinned
+mGBA checkout, patch, and all additions. FMS and STEPPER ROMs are not distributed.
 
 ## Inter menu typography
 

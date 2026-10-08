@@ -18,10 +18,6 @@ Apps/LINK4BRICK/icon*.png
 mgba/
 mgba-build/
 clock-test
-fms-probe
-Apps/LINK4BRICKSync/bin/
-Apps/LINK4BRICKSync/cores/
-Apps/LINK4BRICKSync/saves/
 *.gba
 *.gb
 *.sav
@@ -31,3 +27,6 @@ Apps/LINK4BRICKSync/saves/
 assets/Inter.ttf
 Apps/LINK4BRICK/ui/
 docs/images/settings.png
+source/
+backups/
+*.tar.gz

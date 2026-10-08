@@ -299,37 +299,14 @@ def runtime(build):
 
 
 def package(path):
-    expected = {"LICENSE.txt", "THIRD_PARTY.txt", "LICENSES/Ableton-Link.md", "LICENSES/Asio.txt", "README.txt", "Apps/LINK4BRICK/config.json", "Apps/LINK4BRICK/icon.png", "Apps/LINK4BRICK/icon-on.png", "Apps/LINK4BRICK/icon-off.png"}
-    expected |= {f"Apps/LINK4BRICK/{p.name}" for p in (ROOT / "Apps/LINK4BRICK").glob("*.sh")}
-    expected |= {"Apps/LINK4BRICK/settings.txt", "Apps/LINK4BRICK/ui/font.bin", "Apps/LINK4BRICK/ui/logo.rgba", "LICENSES/Inter-OFL.txt"}
-    expected |= {f"Apps/LINK4BRICK/bin/{p}" for p in ["alsa-probe", "linkaudio-send", "audiocast-session", "audiocast-cksum", "audiocast-settings"]}
-    with zipfile.ZipFile(path) as z:
-        assert z.testzip() is None
-        assert {i.filename for i in z.infolist() if not i.is_dir()} == expected
-        assert len(z.namelist()) == len(set(z.namelist()))
-        for info in z.infolist():
-            assert not any(p.endswith(".pak") or p == ".." for p in info.filename.split("/"))
-            if info.filename.endswith(".sh") or "/bin/" in info.filename and not info.is_dir():
-                assert (info.external_attr >> 16) & 0o111
-            if "/bin/" in info.filename and not info.is_dir():
-                data = z.read(info)
-                assert data[:6] == b"\x7fELF\x02\x01"
-                assert int.from_bytes(data[18:20], "little") == 183
-        config = json.loads(z.read("Apps/LINK4BRICK/config.json"))
-        assert config["launch"] == "launch.sh" and config["label"] == "LINK4BRICK"
-        assert config["icontop"] == "icon.png" and config["icon"] == ""
-        from PIL import Image
-        from io import BytesIO
-        for name in ["icon.png", "icon-on.png", "icon-off.png"]:
-            icon = Image.open(BytesIO(z.read("Apps/LINK4BRICK/" + name)))
-            assert icon.size == (256, 256) and icon.mode in ("RGBA", "RGB", "P")
-            icon.load()
-            assert icon.convert("RGBA").getextrema()[3][1] == 255
-        assert z.read("Apps/LINK4BRICK/icon.png") == z.read("Apps/LINK4BRICK/icon-on.png")
-        assert z.read("Apps/LINK4BRICK/icon-on.png") != z.read("Apps/LINK4BRICK/icon-off.png")
-        for script in ["launch.sh", "run.sh"]:
-            assert "exec >/dev/null 2>&1" in z.read("Apps/LINK4BRICK/" + script).decode()
-    print("PASS: StockUI ZIP layout, CRC, ARM64 executables, modes, no .pak")
+    from install import load_package
+    files = load_package(Path(path))
+    assert files['settings.txt'][0] == b'LINK_AUDIO=on\n'
+    for relative in ['run.sh', 'cable/run-ra.sh']:
+        assert b'audio_latency = "65"' in files[relative][0]
+    assert files['icon.png'][0] == files['icon-on.png'][0]
+    assert files['icon-on.png'][0] != files['icon-off.png'][0]
+    print("PASS: stable StockUI ZIP, complete manifest, ARM64 binaries, fixed 65 ms buffer")
 
 
 if __name__ == "__main__":

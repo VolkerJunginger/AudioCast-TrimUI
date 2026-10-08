@@ -23,7 +23,10 @@ with tempfile.TemporaryDirectory() as t:
   (app/'config.json').write_text(json.dumps(meta,indent=2)+'\n')
   shutil.copyfile(app/'icon-on.png',app/'icon.png')
   for p in app.rglob('*.sh'):p.chmod(0o755);subprocess.run(['sh','-n',str(p)],check=True)
-  shutil.copyfile(ROOT/'docs/VIRTUAL_LINK_CABLE.md',stage/'README.txt')
+  shutil.copyfile(ROOT/'INSTALL.txt',stage/'README.txt')
+  shutil.copyfile(ROOT/'tools/install.py',stage/'install_link4brick.py')
+  manifest={'product':'LINK4BRICK','version':'1.0.0','installable':not args.host,'files':{str(p.relative_to(app)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(app.rglob('*')) if p.is_file()}}
+  (app/'release.json').write_text(json.dumps(manifest,indent=2)+'\n')
   shutil.copyfile(ROOT/'THIRD_PARTY.md',stage/'THIRD_PARTY.txt');(stage/'LICENSES').mkdir()
   for p in [ROOT/'LICENSE',ROOT/'LICENSES/mGBA-MPL-2.0.txt',ROOT/'LICENSES/mGBA-inih.txt',ROOT/'LICENSES/Ableton-Link.md',ROOT/'LICENSES/Inter-OFL.txt']:
     shutil.copyfile(p,stage/'LICENSES'/p.name)
@@ -34,7 +37,7 @@ with tempfile.TemporaryDirectory() as t:
       if p.is_file():z.write(p,p.relative_to(stage))
   with zipfile.ZipFile(args.output) as z:
     assert z.testzip() is None
-    assert all(n.startswith(('Apps/LINK4BRICK/','LICENSES/')) or n in ['README.txt','THIRD_PARTY.txt'] for n in z.namelist())
+    assert all(n.startswith(('Apps/LINK4BRICK/','LICENSES/')) or n in ['README.txt','THIRD_PARTY.txt','install_link4brick.py'] for n in z.namelist())
     assert not any(n.lower().endswith(('.gb','.gba','.sav','.srm','.log','.pak')) for n in z.namelist())
     assert json.loads(z.read('Apps/LINK4BRICK/config.json'))['label']=='LINK4BRICK'
     assert b'PROTOCOL=fms-gba\n' in z.read('Apps/LINK4BRICK/cable/config.txt')
@@ -47,4 +50,7 @@ with tempfile.TemporaryDirectory() as t:
     assert b'Audio buffer' not in z.read('Apps/LINK4BRICK/bin/audiocast-settings')
     for n in bins:assert (z.getinfo('Apps/LINK4BRICK/bin/'+n).external_attr>>16)&0o111
   args.output.with_suffix(args.output.suffix+'.sha256').write_text(hashlib.sha256(args.output.read_bytes()).hexdigest()+'  '+args.output.name+'\n')
+if not args.host:
+  from install import load_package
+  load_package(args.output)
 print('PASS: ARM64 unless --host, ZIP integrity, one LINK4BRICK app, normal game launch, disabled install state, no ROMs/saves/logs/.pak')

@@ -1,51 +1,65 @@
-<div align="center">
-  <img src="docs/images/icon-on.png" width="128" alt="LINK4BRICK logo">
-  <h1>LINK4BRICK</h1>
-  <p><strong>GBA music, connected to your Link session.</strong></p>
-  <p>Stream audio from TrimUI Brick Hammer to Push and follow Ableton Link tempo with FMS or STEPPER.</p>
-</div>
+<p align="center"><img src="docs/images/icon-on.png" width="160" alt="LINK4BRICK"></p>
 
-LINK4BRICK runs from the SD card on **StockUI**. Open your music program from the normal **Games → GBA** menu. Audio continues through the Brick speaker; **Link audio** can be enabled for streaming to the **Brick Out** channel on Push, or disabled for clock-only use.
+# LINK4BRICK
 
-This development preview follows the user's successful FMS tempo and queued-start tests. Playback buffering is now fixed at the user-selected 65 ms. The next Brick test checks FMS GBA START alignment with measured delivery timing. The existing published audio-only release remains separate.
+**Ableton Link audio and clock sync for the TrimUI Brick Hammer.**
+
+Play FMS or STEPPER from the normal StockUI GBA game list. Hear audio on the Brick and stream it to Push as **Brick Out**, or switch Link audio off and use clock sync alone.
+
+[Download the stable release](https://github.com/VolkerJunginger/LINK4BRICK/releases/latest) · [Install](INSTALL.txt) · [Sync modes](docs/VIRTUAL_LINK_CABLE.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
+
+[![Build and release](https://github.com/VolkerJunginger/LINK4BRICK/actions/workflows/release.yml/badge.svg)](https://github.com/VolkerJunginger/LINK4BRICK/actions/workflows/release.yml)
+
+## What it does
+
+- Keeps the Brick speaker playing while sending 48 kHz stereo audio over Link Audio.
+- Follows live Link tempo changes through a virtual GBA cable.
+- In **FMS GBA** mode, pressing Brick START queues playback to the next four-beat “one.”
+- Offers separate Link audio and sync settings, with matching PPQ choices for FMS Clock and STEPPER.
+- Uses the final ON/OFF icons and a minimal settings page. The audio buffer is fixed at **65 ms**.
+- Installs on the SD card, with reversible launcher routing and no runtime log files.
+
+**Tested setup:** TrimUI Brick Hammer, StockUI, FMS GBA and Ableton Push. The user confirmed stable audio, tempo following and queued starts in FMS GBA. STEPPER has its own tested emulator sync implementation; performance with individual ROM versions still needs hardware confirmation. Other firmware and Game Boy sync are not supported by this release. This is a music sync adapter, not a general multiplayer Game Link emulator.
+
+## Install from Terminal
+
+Download **LINK4BRICK-StockUI-v1.0.0.zip** and **install_link4brick.py** from the [release page](https://github.com/VolkerJunginger/LINK4BRICK/releases/latest), placing them in the same folder. Close the game, shut down the Brick and connect its SD card to your computer. With Python 3 installed, run:
+
+```sh
+python3 ~/Downloads/install_link4brick.py --card /Volumes/128GBRICK
+```
+
+Use your actual card path if it differs. The installer verifies the package, keeps existing settings and launcher backups, and saves an undo journal on your computer. Upgrading LINK4BRICK preserves its enabled state. If upgrading from the old **AudioCast** app, first turn that app OFF on the Brick; it must restore its launchers before installing LINK4BRICK.
+
+Eject the card, reboot the Brick and open **Apps → LINK4BRICK**. Enable it in settings, then open your ROM from **Games → GBA** as usual. You do not need a separate FMS launcher. On Push, enable Link and choose **Brick Out** after opening the game. Both devices must share a network that permits Link discovery.
 
 ## Settings
 
-The grayscale settings menu uses smooth Inter typography, your current logo and a simple selection row.
-
-Use **Up / Down** to select a row, **Left / Right** to adjust, **A** to change and **B** to return. Close the game first. Preferences apply to the next game session.
-
 | Setting | Choices |
-|---|---|
-| Enabled | On / Off; Off restores managed GBA launchers |
-| Link audio | On / Off; Off keeps local sound and Link clock active |
-| Sync mode | Off, FMS - GBA, STEPPER, FMS - Clock |
-| Pulses per beat | FMS GBA: fixed 24; STEPPER: 4 / 6 / 12 / 24 / 48 / 96; FMS Clock: 1 / 2 / 3 / 4 / 6 / 8 |
+| --- | --- |
+| Enabled | ON wraps compatible StockUI GBA launchers; OFF restores their originals |
+| Link audio | ON streams to Push; OFF keeps speaker audio and clock sync |
+| Sync mode | Off, FMS GBA, FMS Clock, STEPPER |
+| PPQ | FMS GBA: 24; FMS Clock: 1, 2, 3, 4, 6, 8; STEPPER: 4, 6, 12, 24, 48, 96 |
 
-RetroArch playback buffering is fixed at **65 ms** for normal and sync launches. The buffer option has been removed; older saved buffer values are ignored. No delay compensation is applied; compensate incoming audio on Push as needed.
+Start with **FMS GBA / 24 PPQ** and set FMS to **SYNC IN / GBA**. Press START on the Brick to queue the next “one.” Match the program's sync input and PPQ when using FMS Clock or STEPPER. Change settings with the game closed.
 
-GB/DMGo sync is retired from this menu. This preview manages GBA launchers only. FMS and STEPPER use different GameLink protocols; this is not universal multiplayer, trading or MIDI support.
+The “one” is a four-beat Link phase boundary. Audio transport adds latency; compensate for incoming audio on Push as appropriate. LINK4BRICK does not apply extra delay compensation. The icon reflects whether routing is enabled, rather than whether a peer is connected.
 
-## FMS and STEPPER
+## Reversible by design
 
-- **FMS - GBA:** FMS **SYNC IN → GBA**; fixed 24 PPQ serial clock.
-- **FMS - Clock:** FMS **SYNC IN → CLOCK**; match its PPQ to LINK4BRICK.
-- **STEPPER:** **LINK IN**; match its BPQ to LINK4BRICK. The incoming rates are 4, 6, 12, 24, 48 and 96. STEPPER's 2 BPQ output mode is not supported as a clock input.
+Turn **Enabled OFF** before removing the app or editing emulator launch scripts. Original launchers and checksum records stay on the card until restoration succeeds. Normal ROMs, battery saves, emulator binaries, firmware and global ALSA configuration are unchanged. A private patched mGBA core is used only for supported sync modes; its manual save states have a separate folder.
 
-Brick **START queues the next four-beat Link “one”**. Press again to stop or cancel. Subsequent ticks follow live Link tempo changes. Existing sync timing and audio transport code are unchanged by this UI update.
+The Terminal installer reports a local `installation.json` path. To undo that update:
 
-## Installation and migration
+```sh
+python3 ~/Downloads/install_link4brick.py --card /Volumes/128GBRICK --undo /path/to/installation.json
+```
 
-Use the supplied **Terminal installer** for an existing installation. It verifies files, preserves launcher originals, settings, icons and private saves, and migrates the app to **`Apps/LINK4BRICK`**. It restores any previously managed GB launchers and retains GBA routing when enabled. Use the same installer with `--undo` to return to the previous folder and files.
+Undo checks both installed files and backups before restoring them. If a managed file has subsequently changed, it stops and preserves the edit. Keep your backup journals. Old diagnostic helpers and the dedicated BrickTools cable checker are backed up and removed during this update; existing test logs are left for you to keep or delete.
 
-Do not extract the new folder beside an enabled old installation: its wrappers still point to the old folder. For a fresh installation, extract the StockUI ZIP at the SD-card root, safely eject and reboot, then open **Apps → LINK4BRICK** and enable it. No `.pak` is used.
+## Build and license
 
-The new ON/OFF artwork supplied by the maintainer is packaged unchanged. `icon.png` initially uses the ON artwork; the icon then follows the enabled state. Internal executable names, environment variables, diagnostic names and backup suffixes retain their existing names for compatibility during this **folder-first migration**.
+The [build guide](docs/DEVELOPMENT.md) and automated checks cover routing, recovery, settings, live Link tempo, GBA serial sync, STEPPER interrupts, fixed-rate audio, ARM64 execution and the reversible installer. Each release includes the installable **StockUI ZIP**, corresponding source, installer and SHA-256 checksums. No ROMs or `.pak` files are distributed.
 
-## Safety and development
-
-Only SD-card app files and reversible launchers change. Firmware, `/etc/asound.conf`, RetroArch binaries, ROMs, saves and normal core settings remain intact. Audio configuration, clock sockets and temporary RetroArch overrides live in `/tmp`.
-
-The standard ZIP discards diagnostics. The tailored test installer preserves the existing bounded diagnostic log at **`AudioCast-Link-Sync-test.log`**.
-
-See the [sync guide](docs/VIRTUAL_LINK_CABLE.md), [build instructions](docs/DEVELOPMENT.md), [troubleshooting](docs/TROUBLESHOOTING.md) and [third-party notices](THIRD_PARTY.md). Main code is [GPL-2.0-or-later](LICENSE); mGBA is MPL-2.0 and Inter is SIL OFL 1.1. This is an independent project, not an official Ableton or TrimUI product.
+Project code is **GPL-2.0-or-later**. The private mGBA integration is **MPL-2.0**; see [third-party notices](THIRD_PARTY.md). LINK4BRICK is independent of Ableton and TrimUI.
