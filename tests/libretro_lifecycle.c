@@ -40,7 +40,7 @@ static int16_t input(unsigned p,unsigned d,unsigned i,unsigned id){(void)p;(void
 #define CHECK(c) do {if(!(c)){fprintf(stderr,"FAIL line %d: %s\n",__LINE__,#c);return 1;}}while(0)
 #define LOAD(n) __typeof__(&n) n##_fn=dlsym(lib,#n);CHECK(n##_fn)
 int main(int argc,char** argv) {
-  CHECK(argc==2);void* lib=dlopen(argv[1],RTLD_NOW|RTLD_LOCAL);
+  CHECK(argc==2 || argc==3);int gb=argc==3;void* lib=dlopen(argv[1],RTLD_NOW|RTLD_LOCAL);
   if(!lib){fprintf(stderr,"Loader failure: %s\n",dlerror());return 1;}
   LOAD(retro_set_environment);LOAD(retro_set_video_refresh);LOAD(retro_set_audio_sample_batch);
   LOAD(retro_set_audio_sample);LOAD(retro_set_input_poll);LOAD(retro_set_input_state);
@@ -48,8 +48,8 @@ int main(int argc,char** argv) {
   char directory[80],socket_path[108],marker[120];
   snprintf(directory,sizeof(directory),"/tmp/ac-libretro-cable-%ld",(long)getpid());CHECK(!mkdir(directory,0700));
   snprintf(socket_path,sizeof(socket_path),"%s/clock.sock",directory);snprintf(marker,sizeof(marker),"%s.ready",socket_path);
-  CHECK(!setenv("AUDIOCAST_CLOCK_SOCKET",socket_path,1));CHECK(!setenv("AUDIOCAST_LINK_PROTOCOL","gba-clock",1));
-  CHECK(!setenv("AUDIOCAST_PPQN","2",1));
+  CHECK(!setenv("AUDIOCAST_CLOCK_SOCKET",socket_path,1));CHECK(!setenv("AUDIOCAST_LINK_PROTOCOL",gb?"dmgo-gb":"gba-clock",1));
+  CHECK(!setenv("AUDIOCAST_PPQN",gb?"16":"2",1));
   uint8_t rom[512]={0};uint32_t branch=0xeafffffe;memcpy(rom,&branch,4);
   /* Minimal recognition signature; no copyrighted logo image or game code. */
   /* Branch past the recognition header; write SOUNDBIAS=65536 Hz at runtime.
@@ -60,7 +60,13 @@ int main(int argc,char** argv) {
   rom[4]=0x24;rom[5]=0xff;rom[6]=0xae;rom[7]=0x51;rom[0xb2]=0x96;
   retro_set_environment_fn(environment);retro_set_video_refresh_fn(video);retro_set_audio_sample_batch_fn(audio);
   retro_set_audio_sample_fn(sample);retro_set_input_poll_fn(poll_input);retro_set_input_state_fn(input);retro_init_fn();
-  struct retro_game_info game={"generated-loop.gba",rom,sizeof(rom),NULL};CHECK(retro_load_game_fn(&game));
+  uint8_t gbrom[32768]={0};
+  /* Recognition via GBX footer, not a copyrighted cartridge logo. */
+  gbrom[0x100]=0xc3;gbrom[0x101]=0x50;gbrom[0x102]=1;
+  gbrom[0x150]=0xc3;gbrom[0x151]=0x50;gbrom[0x152]=1;
+  uint8_t* footer=gbrom+sizeof(gbrom)-16;
+  footer[3]=0x40;footer[7]=1;memcpy(footer+12,"GBX!",4);
+  struct retro_game_info game={gb?"generated-loop.gb":"generated-loop.gba",gb?(void*)gbrom:(void*)rom,gb?sizeof(gbrom):sizeof(rom),NULL};CHECK(retro_load_game_fn(&game));
   struct retro_system_av_info info;retro_get_system_av_info_fn(&info);
   CHECK(info.timing.sample_rate==48000 && av_reopens==0);
   CHECK(!access(socket_path,F_OK));CHECK(access(marker,F_OK)!=0);

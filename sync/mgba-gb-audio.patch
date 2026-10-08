@@ -1,0 +1,47 @@
+--- a/src/platform/libretro/libretro.c
++++ b/src/platform/libretro/libretro.c
+@@ -622,6 +622,18 @@
+ 	core->currentVideoSize(core, &width, &height);
+ 	videoCallback(outputBuffer, width, height, BYTES_PER_PIXEL * 256);
+ 
++#ifdef M_CORE_GB
++	if (core->platform(core) == mPLATFORM_GB && AudioCastAudioActive()) {
++		AudioCastAudioProcess();
++		int produced = AudioCastAudioRead(audioSampleBuffer, audioSampleBufferSize / 2);
++		if (produced > 0) {
++			if (audioLowPassEnabled) _audioLowPassFilter(audioSampleBuffer, produced);
++			audioCallback(audioSampleBuffer, produced);
++		}
++		return;
++	}
++#endif
++
+ #ifdef M_CORE_GBA
+ 	if (core->platform(core) == mPLATFORM_GBA) {
+ 		struct mAudioBuffer *buffer = core->getAudioBuffer(core);
+@@ -907,18 +919,14 @@
+ 	} else
+ 	#endif
+ 	{
+-		/* GB/GBC emulation does not produce a number
+-		 * of samples per frame that is consistent with
+-		 * the set sample rate, and so it is unclear how
+-		 * best to handle this. We therefore fallback to
+-		 * using the regular stream-set _postAudioBuffer()
+-		 * callback with a fixed buffer size, which seems
+-		 * (historically) to produce adequate results */
+-		stream.postAudioBuffer = _postAudioBuffer;
+-		audioSampleBufferSize = GB_SAMPLES * 2;
++		/* GB uses the same fixed frontend rate. Its native 131072 Hz reset
++		 * callback must not reopen the exclusive ALSA speaker during load. */
++		stream.postAudioBuffer = NULL;
++		audioSampleBufferSize = 2048 * 2;
+ 		audioSampleBuffer = malloc(audioSampleBufferSize * sizeof(int16_t));
+-		audioSamplesPerFrameAvg = GB_SAMPLES;
+-		core->setAudioBufferSize(core, GB_SAMPLES);
++		audioSamplesPerFrameAvg = 0;
++		core->setAudioBufferSize(core, 0x4000);
++		AudioCastAudioInit(core->getAudioBuffer(core), core->audioSampleRate(core));
+ 	}
+ 
+ 	core->setAVStream(core, &stream);

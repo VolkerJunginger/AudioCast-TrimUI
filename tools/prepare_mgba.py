@@ -17,7 +17,7 @@ def git(*args):
 if git("rev-parse", "HEAD") != SHA:
     raise SystemExit("mGBA source does not match the tested upstream commit")
 # Only apply missing exact patches; never reset an existing source checkout.
-for name in ["mgba.patch", "mgba-input.patch"]:
+for name in ["mgba.patch", "mgba-input.patch", "mgba-gb-audio.patch"]:
     patch = root / "sync" / name
     check = subprocess.run(["git", "-C", str(a.destination), "apply", "--reverse", "--check", str(patch)], capture_output=True)
     if check.returncode:

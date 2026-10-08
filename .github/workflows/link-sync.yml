@@ -52,6 +52,7 @@ jobs:
           cc -std=gnu11 -D_POSIX_C_SOURCE=200809L -I mgba/src/platform/libretro tests/libretro_lifecycle.c -ldl -o libretro-lifecycle
           ./host-build/audiocast-core-probe mgba-build/mgba_libretro.so
           ./libretro-lifecycle mgba-build/mgba_libretro.so
+          ./libretro-lifecycle mgba-build/mgba_libretro.so --gb
   build:
     needs: host
     runs-on: ubuntu-latest
@@ -85,6 +86,7 @@ jobs:
           AC_SDK_SYSROOT=$(/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-gcc -print-sysroot)
           qemu-aarch64 -cpu cortex-a53 -L "$AC_SDK_SYSROOT" build/audiocast-core-probe mgba-build/mgba_libretro.so
           qemu-aarch64 -cpu cortex-a53 -L "$AC_SDK_SYSROOT" build/libretro-lifecycle mgba-build/mgba_libretro.so
+          qemu-aarch64 -cpu cortex-a53 -L "$AC_SDK_SYSROOT" build/libretro-lifecycle mgba-build/mgba_libretro.so --gb
       - name: Package and validate experimental StockUI ZIP
         run: |
           apt-get update && apt-get install -y python3-pil zip unzip
