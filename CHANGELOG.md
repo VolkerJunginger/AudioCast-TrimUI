@@ -1,5 +1,13 @@
 # Release history
 
+## Unreleased — clock/settings preview
+
+- On-device settings for enabled state, Link audio and cable protocol.
+- Clock-only mode keeps Link tempo and the Brick speaker without advertising an audio channel.
+- Game Boy serial adapter for DMGo LINK IN, verified in emulation; device testing pending.
+- Retains device-tested FMS 24-PPQN tempo and queued downbeat transport; zero delay offset.
+
+
 ## 0.2.2 — StockUI GB/GBA
 
 - Added ON/OFF artwork following the app's activation marker.

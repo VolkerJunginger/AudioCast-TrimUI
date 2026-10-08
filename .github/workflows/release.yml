@@ -62,7 +62,7 @@ jobs:
           python3 tools/make_icon.py release/Apps/AudioCast/icon-on.png on
           python3 tools/make_icon.py release/Apps/AudioCast/icon-off.png off
           cp release/Apps/AudioCast/icon-off.png release/Apps/AudioCast/icon.png
-          install -m 0755 build/linkaudio-send build/audiocast-session build/alsa-probe build/audiocast-cksum release/Apps/AudioCast/bin/
+          install -m 0755 build/linkaudio-send build/audiocast-session build/alsa-probe build/audiocast-cksum build/audiocast-settings release/Apps/AudioCast/bin/
           install -m 0644 INSTALL.txt release/README.txt
           install -m 0644 LICENSE release/LICENSE.txt
           install -m 0644 THIRD_PARTY.md release/THIRD_PARTY.txt

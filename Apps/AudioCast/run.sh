@@ -63,7 +63,17 @@ auto_overrides_enable = "false"
 EOF
 cp "$AC_SD/RetroArch/retroarch.cfg" "$AC_RUN/ra.cfg" || exit 1
 export AC_APP AC_SD AC_RUN
+AUDIOCAST_AUDIO_RECOVERY=1
+unset AUDIOCAST_CLOCK_REFRESH_MS AUDIOCAST_CLOCK_MODE
+export AUDIOCAST_AUDIO_RECOVERY
 if [ -r "$AC_APP/cable/env.sh" ]; then . "$AC_APP/cable/env.sh"; fi
+AUDIOCAST_LINK_AUDIO=1
+if [ -r "$AC_APP/settings.sh" ]; then
+  ac_link_audio=$(/bin/sh "$AC_APP/settings.sh" audio-value)
+  case "$ac_link_audio" in 0|1) AUDIOCAST_LINK_AUDIO="$ac_link_audio";; esac
+  unset ac_link_audio
+fi
+export AUDIOCAST_LINK_AUDIO
 # The child preflight sets ALSA_CONFIG_PATH only after the route opens cleanly.
 "$AC_APP/bin/audiocast-session" "$AC_APP/bin/linkaudio-send" "$FIFO" \
   /bin/sh "$AC_APP/start-game.sh" "$SCRIPT" "$@" &

@@ -43,6 +43,14 @@ if core.endswith('mgba-link_libretro.so'):
     assert calls[0]['clock']==str(runtime/'clock.sock') and calls[0]['protocol']=='gba-clock'
     calls=run('PROTOCOL=fms-gba\nPPQN=24\nOFFSET_US=0\n',SIM_READY='1')
     assert len(calls)==1 and calls[0]['protocol']=='fms-gba' and calls[0]['clock']==str(runtime/'clock.sock')
+    gb=str(sd/'RetroArch/.retroarch/cores/gambatte_gb_libretro.so')
+    calls=run('PROTOCOL=dmgo-gb\nPPQN=16\nOFFSET_US=0\n',['-L',gb,'DMGo.gb'],SIM_READY='1')
+    assert len(calls)==1 and calls[0]['args'][-2]==str(app/'cores/mgba-link_libretro.so') and calls[0]['protocol']=='dmgo-gb'
+    assert 'audio_latency = "64"' in calls[0]['config']
+    calls=run('PROTOCOL=fms-gba\nPPQN=24\nOFFSET_US=0\n',['-L',gb,'Ordinary.gb'])
+    assert calls[0]['args'][-2]==gb and calls[0]['clock'] is None
+    calls=run('PROTOCOL=dmgo-gb\nPPQN=16\nOFFSET_US=0\n',['-L',gb,'DMGo.gb'])
+    assert len(calls)==2 and calls[1]['args'][-2]==gb and calls[1]['clock'] is None
     # Failures before any frame must fall back, including frontend exit code 0.
     for code in ['0','1','139']:
         calls=run(active,PRIVATE_RESULT=code)

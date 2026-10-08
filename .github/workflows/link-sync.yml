@@ -1,7 +1,7 @@
 name: Experimental Virtual Link Cable
 on:
   pull_request:
-    paths: ['sync/**', 'tests/**', 'src/sender.cpp', 'src/pcm_timeline.h', 'src/tempo_hold.h', 'src/core_probe.cpp', 'CMakeLists.txt', 'tools/*sync*', 'tools/*mgba*', 'tools/build_probe.py', 'tools/prepare_link.py', 'tools/package_virtual_cable.py', 'Apps/AudioCast/**', 'docs/VIRTUAL_LINK_CABLE.md', '.github/workflows/link-sync.yml']
+    paths: ['sync/**', 'tests/**', 'src/sender.cpp', 'src/pcm_timeline.h', 'src/tempo_hold.h', 'src/core_probe.cpp', 'src/settings.cpp', 'CMakeLists.txt', 'tools/*sync*', 'tools/*mgba*', 'tools/build_probe.py', 'tools/prepare_link.py', 'tools/package_virtual_cable.py', 'Apps/AudioCast/**', 'docs/VIRTUAL_LINK_CABLE.md', '.github/workflows/link-sync.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -28,6 +28,8 @@ jobs:
           python3 tools/prepare_link.py link
           cmake -S . -B host-build -DLINK_DIR="$PWD/link" -DAUDIOCAST_CLOCK_TESTS=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build host-build -j2
+          python3 tests/settings_test.py host-build
+          python3 tests/clock_only_test.py host-build
           python3 tests/sender_clock_test.py host-build
           python3 tests/sender_clock_test.py host-build --tempo-hold
           python3 tests/sender_clock_test.py host-build --tempo-latch
@@ -43,6 +45,8 @@ jobs:
           ./core-clock-test
           python3 tools/build_probe.py mgba-build --serial --output serial-clock-test
           ./serial-clock-test
+          python3 tools/build_probe.py mgba-build --gb --output gb-clock-test
+          ./gb-clock-test
           python3 tools/build_probe.py mgba-build --audio --output audio-rate-test
           ./audio-rate-test
           cc -std=gnu11 -D_POSIX_C_SOURCE=200809L -I mgba/src/platform/libretro tests/libretro_lifecycle.c -ldl -o libretro-lifecycle

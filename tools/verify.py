@@ -148,18 +148,18 @@ def launchers(fixtures=None, build=None):
         command(control + ["off"])
         assert all(p.read_bytes() == data for p, data in originals.items())
         assert not list(runtime.iterdir())
-        # Exercise the actual StockUI entry point, including silent toggles.
+        # Exercise reversible controls directly; the StockUI entry now opens settings.
         old_log = tmp / "AudioCast-StockUI-v0.2b.log"
         old_log.write_text("previous release log\n")
-        assert command(["sh", str(app / "launch.sh")]) == ""
+        command(["sh", str(app / "control.sh"), "toggle"])
         assert (app / "enabled").exists()
-        assert command(["sh", str(app / "launch.sh")]) == ""
+        command(["sh", str(app / "control.sh"), "toggle"])
         assert not (app / "enabled").exists()
         assert (app / "icon.png").read_bytes() == b"off-image"
         assert old_log.read_text() == "previous release log\n"
         old_log.unlink()
-        command(["sh", str(app / "launch.sh")])
-        command(["sh", str(app / "launch.sh")])
+        command(["sh", str(app / "control.sh"), "toggle"])
+        command(["sh", str(app / "control.sh"), "toggle"])
         assert not list(tmp.rglob("*.log"))
         assert (app / "icon.png").read_bytes() == b"off-image"
         assert not (app / "icon.png.new").exists()
@@ -301,7 +301,7 @@ def runtime(build):
 def package(path):
     expected = {"LICENSE.txt", "THIRD_PARTY.txt", "LICENSES/Ableton-Link.md", "LICENSES/Asio.txt", "README.txt", "Apps/AudioCast/config.json", "Apps/AudioCast/icon.png", "Apps/AudioCast/icon-on.png", "Apps/AudioCast/icon-off.png"}
     expected |= {f"Apps/AudioCast/{p.name}" for p in (ROOT / "Apps/AudioCast").glob("*.sh")}
-    expected |= {f"Apps/AudioCast/bin/{p}" for p in ["alsa-probe", "linkaudio-send", "audiocast-session", "audiocast-cksum"]}
+    expected |= {f"Apps/AudioCast/bin/{p}" for p in ["alsa-probe", "linkaudio-send", "audiocast-session", "audiocast-cksum", "audiocast-settings"]}
     with zipfile.ZipFile(path) as z:
         assert z.testzip() is None
         assert {i.filename for i in z.infolist() if not i.is_dir()} == expected

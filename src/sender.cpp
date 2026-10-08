@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <cstring>
 #include <chrono>
+#include <memory>
 #include "pcm_timeline.h"
 #include "tempo_hold.h"
 static volatile sig_atomic_t running = 1;
@@ -25,9 +26,12 @@ int main() {
   setvbuf(stdout, nullptr, _IOLBF, 0);
   ableton::LinkAudio link(120.0, "TrimUI Brick Hammer");
   link.setNumPeersCallback([](std::size_t n) { std::printf("link peers changed: %zu\n", n); });
+  const char* audioSetting=std::getenv("AUDIOCAST_LINK_AUDIO");
+  const bool audioEnabled=!(audioSetting && std::strcmp(audioSetting,"0")==0);
   link.enable(true);
-  link.enableLinkAudio(true);
-  ableton::LinkAudioSink sink(link, "Brick Out", 512);
+  link.enableLinkAudio(audioEnabled);
+  std::unique_ptr<ableton::LinkAudioSink> sink;
+  if (audioEnabled) sink=std::make_unique<ableton::LinkAudioSink>(link,"Brick Out",512);
   int clockFd = -1;
   sockaddr_un clockAddress{};
   const char* clockPath = std::getenv("AUDIOCAST_CLOCK_SOCKET");
@@ -41,9 +45,10 @@ int main() {
     }
   }
   std::printf("AudioCast v0.2b: 48000Hz stereo S16_LE; Link transport 48000Hz\n");
+  std::printf("LINK_AUDIO=%s CLOCK_CONNECTION=enabled\n",audioEnabled ? "on" : "off");
   int16_t samples[512];
   size_t filled = 0;
-  uint64_t received=0, committed=0, unavailable=0, rejected=0;
+  uint64_t received=0, committed=0, unavailable=0, rejected=0, discarded=0;
   unsigned peak=0;
   auto lastReport = std::chrono::steady_clock::now();
   const char* recoverySetting=std::getenv("AUDIOCAST_AUDIO_RECOVERY");
@@ -70,6 +75,7 @@ int main() {
     std::printf("stats: fifo_buffers=%llu committed=%llu no_buffer=%llu commit_rejected=%llu peak=%u\n",
       (unsigned long long)received, (unsigned long long)committed,
       (unsigned long long)unavailable, (unsigned long long)rejected, peak);
+    std::printf("clock_only: enabled=%d drained_buffers=%llu\n",!audioEnabled,(unsigned long long)discarded);
     peak=0;
     if (timingDiagnostics) {
       std::printf("audio_timing: policy=%s block_frames=%zu lag_min_us=%lld lag_max_us=%lld input_gap_max_us=%lld recoveries=%llu long_gaps=%llu peers=%zu\n",
@@ -148,8 +154,11 @@ int main() {
       unsigned magnitude = s < 0 ? unsigned(-int(s)) : unsigned(s);
       if (magnitude > peak) peak=magnitude;
     }
+    // Drain every PCM block in clock-only mode so the unchanged ALSA tee and
+    // local speaker never wait for a network consumer. No audio channel exists.
+    if (!audioEnabled) { ++discarded; continue; }
     auto begin=std::chrono::microseconds(timeline.next(link.clock().micros().count()));
-    ableton::LinkAudioSink::BufferHandle buffer(sink);
+    ableton::LinkAudioSink::BufferHandle buffer(*sink);
     if (!buffer) { ++unavailable; timeline.invalidate(); continue; }
     std::memcpy(buffer.samples, samples, inputBytes);
     auto state=link.captureAudioSessionState();

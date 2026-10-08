@@ -6,11 +6,20 @@
 #include <memory>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 int main(int argc,char** argv) {
   setvbuf(stdout,nullptr,_IOLBF,0);
   ableton::LinkAudio link(120,"AudioCast test receiver");
   link.enable(true);link.enableLinkAudio(true);
+  if(argc>1 && !std::strcmp(argv[1],"--clock-only")) {
+    for(int i=0;i<240;i++) {
+      for(const auto& channel:link.channels())if(channel.name=="Brick Out")return 4;
+      if(i==60 || i==140) { auto state=link.captureAppSessionState();state.setTempo(i==60?90:150,link.clock().micros());link.commitAppSessionState(state); }
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    std::puts("PASS: clock-only peer never advertised Brick Out");return 0;
+  }
   std::atomic<bool> firstAudio{false};
   std::unique_ptr<ableton::LinkAudioSource> source;
   for(int i=0;i<400&&!source;i++) {

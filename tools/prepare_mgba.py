@@ -25,6 +25,6 @@ for name in ["mgba.patch", "mgba-input.patch"]:
         subprocess.run(["git", "-C", str(a.destination), "apply", str(patch)], check=True)
 target = a.destination / "src/platform/libretro/audiocast"
 target.mkdir(parents=True, exist_ok=True)
-for name in ["clock.h", "mgba-clock.h", "mgba-clock.c", "mgba-audio.h", "mgba-audio.c"]:
+for name in ["clock.h", "mgba-clock.h", "mgba-clock.c", "mgba-gb-clock.c", "mgba-audio.h", "mgba-audio.c"]:
     shutil.copyfile(root / "sync" / name, target / name)
 print("Prepared pinned mGBA with AudioCast clock peripheral")

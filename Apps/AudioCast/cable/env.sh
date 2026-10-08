@@ -9,8 +9,8 @@ ac_cable_prepare() {
   ac_cable_offset=0
   while IFS='=' read -r ac_cable_name ac_cable_value; do
     case "$ac_cable_name" in
-      PROTOCOL) case "$ac_cable_value" in off|gba-clock|fms-gba) ac_cable_protocol="$ac_cable_value";; *) return 0;; esac;;
-      PPQN) case "$ac_cable_value" in 1|2|4|8|12|24) ac_cable_ppqn="$ac_cable_value";; *) return 0;; esac;;
+      PROTOCOL) case "$ac_cable_value" in off|gba-clock|fms-gba|dmgo-gb) ac_cable_protocol="$ac_cable_value";; *) return 0;; esac;;
+      PPQN) case "$ac_cable_value" in 1|2|4|8|12|16|24) ac_cable_ppqn="$ac_cable_value";; *) return 0;; esac;;
       OFFSET_US)
         ac_cable_magnitude=${ac_cable_value#-}
         case "$ac_cable_magnitude" in ''|*[!0-9]*) return 0;; esac
@@ -22,7 +22,7 @@ ac_cable_prepare() {
   done < "$AC_APP/cable/config.txt"
   [ "$ac_cable_protocol" != off ] || return 0
   case "$ac_cable_protocol:$ac_cable_ppqn" in
-    fms-gba:24|gba-clock:1|gba-clock:2|gba-clock:4|gba-clock:8|gba-clock:12) ;;
+    fms-gba:24|dmgo-gb:16|gba-clock:1|gba-clock:2|gba-clock:4|gba-clock:8|gba-clock:12) ;;
     *) return 0;;
   esac
   [ -x "$AC_APP/bin/audiocast-core-probe" ] && [ -r "$AC_APP/cores/mgba-link_libretro.so" ] || return 0

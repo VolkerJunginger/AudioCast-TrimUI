@@ -16,13 +16,15 @@
 Experimental clock-sync development now targets a [virtual link cable through
 normal game launches](docs/VIRTUAL_LINK_CABLE.md), governed by AudioCast ON/OFF.
 The dedicated FMS launch/test apps failed on the Hammer and are superseded.
-The stable release remains audio casting only; hardware clock sync is not yet
-verified, and DMGo serial-link support is not implemented.
+The stable release remains audio casting only; FMS tempo and queued downbeat starts have been confirmed on one Brick/Push setup.
+This branch adds settings and a DMGo Game Boy adapter, awaiting device validation.
 
 - Casts **Game Boy `.gb` and Game Boy Advance `.gba`** audio through the existing StockUI game menus.
 - Sends **48 kHz stereo audio** to the Link Audio channel **Brick Out**.
 - Keeps normal Brick speaker output.
-- Toggles ON and OFF from one app, with a matching status icon.
+- Opens an on-device settings menu for enable/disable, Link audio and cable protocol.
+- Can follow Link clock without advertising an audio channel; the Brick speaker keeps playing.
+- Preserves the matching ON/OFF status icon.
 - Runs from the **SD card**, with temporary audio configuration in `/tmp`.
 - Creates **no AudioCast log files**.
 - Restores the original GB/GBA launchers when switched OFF.
@@ -36,7 +38,7 @@ verified, and DMGo serial-link support is not implemented.
 3. Extract the ZIP at the **SD-card root**, merging the `Apps` directory. The app should end up at `Apps/AudioCast/launch.sh`.
 4. Safely eject the card and reboot the Brick.
 5. Connect the Brick and Push to the same local Wi-Fi network. The tested setup uses the Push Wi-Fi network.
-6. Open **Apps → AudioCast** once. It enables casting and returns to StockUI.
+6. In this experimental settings build, open **Apps → AudioCast**, set **ENABLED: ON**, and press **B** to return. The published v0.2.2 still toggles directly.
 7. Start a GB or GBA game normally. On Push, select **Brick Out** from the Link Audio sources. The peer is **TrimUI Brick Hammer**.
 
 The channel exists during a game session and is recreated for each game. You may need to select it again after changing games.
@@ -48,7 +50,7 @@ The channel exists during a game session and is recreated for each game. You may
 | <img src="docs/images/icon-on.png" width="112" alt="ON: turquoise link and filled dot"> | <img src="docs/images/icon-off.png" width="112" alt="OFF: gray link and hollow dot"> |
 | Casting enabled | Casting disabled |
 
-Quit the game, then launch **AudioCast** again to switch it OFF and restore the original launchers. The icon represents **enabled/disabled**, not whether Push is connected. If StockUI shows an old icon, leave and reopen Apps or reboot.
+Quit the game, then open **AudioCast** and set **ENABLED: OFF** to restore the original launchers. In published v0.2.2, opening AudioCast again toggles it OFF. The icon represents **enabled/disabled**, not whether Push is connected. If StockUI shows an old icon, leave and reopen Apps or reboot.
 
 **Always switch OFF before updating or deleting the app.** Replacing the app folder while it is ON can remove its activation records while leaving launcher wrappers behind. See [recovery instructions](docs/TROUBLESHOOTING.md#incomplete-upgrade-or-missing-activation-records) if this has happened.
 
@@ -80,9 +82,20 @@ AudioCast uses [Ableton Link](https://github.com/Ableton/link) and the [tg5040 t
 
 [GPL-2.0-or-later](LICENSE), matching the open-source license used for Ableton Link. See [third-party notices](THIRD_PARTY.md) for dependency attribution.
 
-## Experimental FMS Link clock sync
+## Experimental clock and settings build
 
-Development is underway on a separate **FMS Link Sync** StockUI app. It feeds
-Link clock pulses into FMS's external CLOCK input through a dedicated mGBA core.
-Local FMS 1.31 pulse/tempo tests pass; Brick/Push timing validation is pending.
-The stable release remains cast-only. See [setup, limits and test instructions](docs/FMS_LINK_SYNC.md).
+Open **Apps → AudioCast**. Use **UP/DOWN** to select a row, **A** to change it and **B** to return.
+
+| Setting | Choices |
+|---|---|
+| Enabled | ON / OFF; retains reversible launchers and changing icon |
+| Link audio | ON / OFF; OFF leaves the local speaker and Link clock active |
+| Clock | OFF / FMS GBA / DMGo Game Boy / GBA pulse |
+
+Settings are saved on the SD card and apply to the next game. Close the game before changing them. **LINK AUDIO: OFF** intentionally removes **Brick Out** from the network; enable it again when you want to stream audio.
+
+For **FMS**, choose **FMS / GBA**, launch it from Games → GBA, and set **SYNC IN / GBA**. Brick START queues the next four-beat “one”; press again to stop or cancel. This behavior passed the user's Brick/Push test. The tested 64 ms local audio buffer and temporary CPU policy are retained. Compensate incoming-audio delay on Push; AudioCast applies no delay offset.
+
+For **DMGo**, choose **DMGO / GAME BOY**, launch it from Games → GB, and select **SETUP → SYNC: LINK IN**. START queues the first external clock to the next “one”. The adapter has passed emulator tests with the developer's DMGo v1 ROM, but has not yet been tested on the Brick. DMGo is obtained separately; no ROM is included.
+
+This is **not a universal Game Link implementation**. Each program needs its own protocol. FMS native serial, GBA GPIO pulses and DMGo serial clock are the implemented modes; trading, multiplayer, LSDJ and general MIDI are not supported. See [setup, validation and limits](docs/VIRTUAL_LINK_CABLE.md).

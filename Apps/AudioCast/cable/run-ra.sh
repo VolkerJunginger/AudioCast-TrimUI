@@ -7,7 +7,11 @@ while [ "$remaining" -gt 0 ]; do
   if [ "$argument" = -L ] && [ "$remaining" -gt 0 ]; then
     core="$1"; shift; remaining=$((remaining - 1))
     case "$core" in
-      */mgba_libretro.so)
+      */mgba_libretro.so|*/gambatte_gb_libretro.so|*/gambatte_libretro.so)
+        case "$AUDIOCAST_LINK_PROTOCOL:$core" in
+          dmgo-gb:*/gambatte_gb_libretro.so|dmgo-gb:*/gambatte_libretro.so|dmgo-gb:*/mgba_libretro.so|fms-gba:*/mgba_libretro.so|gba-clock:*/mgba_libretro.so) ;;
+          *) set -- "$@" -L "$core"; continue;;
+        esac
         set -- "$@" -L "$AC_APP/cores/mgba-link_libretro.so"
         selected=1
         original_core="$core";;
@@ -34,8 +38,13 @@ preemptive_frames_enable = "false"
 fastforward_ratio = "1.0"
 video_threaded = "false"
 libretro_log_level = "2"
+audio_sync = "true"
+video_vsync = "false"
+audio_rate_control = "false"
+audio_max_timing_skew = "0.0"
+audio_latency = "64"
 CFG
-"$AC_SD/RetroArch/ra64.trimui" --config "$AC_RUN/ra.cfg" --appendconfig "$AC_RUN/override.cfg" "$@"
+/bin/sh "$AC_APP/cable/runtime-performance.sh" "$AC_SD/RetroArch/ra64.trimui" --config "$AC_RUN/ra.cfg" --appendconfig "$AC_RUN/override.cfg" "$@"
 result=$?
 # A crash/error before the private core completes a frame falls back once to
 # the installed core. A failed test must not make normal FMS unlaunchable.

@@ -144,5 +144,5 @@ done
 rm -f "$LOCK/candidate"
 [ "$count" -gt 0 ] || { rm -f "$MANIFEST"; echo "No compatible launchers."; exit 1; }
 touch "$APP/enabled" || { restore; exit 1; }
-echo "ON: $count GB/GBA launchers. Launch .gb/.gba games normally; launch AudioCast again to restore."
+echo "ON: $count GB/GBA launchers. Launch .gb/.gba games normally; open AudioCast settings to disable."
 echo "Other systems are unchanged."

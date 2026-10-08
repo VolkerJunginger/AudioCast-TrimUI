@@ -15,6 +15,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <stdio.h>
+#include "mgba-gb-clock.c"
 #define AC_GBA_HZ 16777216.0
 #define AC_PULSE_CYCLES 33554 /* 2 ms; FMS 1.31 polls SC every ~1 ms. */
 struct ACDriver {
@@ -53,6 +54,7 @@ static int serialSend(struct ACDriver* a, uint8_t message, uint32_t late) {
     return 1;
 }
 uint16_t AudioCastClockInput(struct mCore* c, uint16_t keys) {
+    if (c->platform(c) == mPLATFORM_GB) return ACGBClockInput(c, keys);
     if (ac.fd < 0 || !ac.serial || c->platform(c) != mPLATFORM_GBA) return keys;
     int pressed = !!(keys & 8);
     int receiver = serialReceiver(&ac);
@@ -151,6 +153,7 @@ static void rising(struct mTiming* t, void* ctx, uint32_t late) {
     if (delay <= INT32_MAX) mTimingSchedule(t, &a->rise, (int32_t)delay);
 }
 void AudioCastClockRebase(struct mCore* c) {
+    if (c->platform(c) == mPLATFORM_GB) { ACGBClockRebase(c); return; }
     if (ac.fd < 0 || c->platform(c) != mPLATFORM_GBA) return;
     struct mTiming* t = &((struct GBA*)c->board)->timing;
     mTimingDeschedule(t, &ac.rise); mTimingDeschedule(t, &ac.fall);
@@ -180,6 +183,7 @@ static void report(void) {
         ac.frames, ac.pulses, ac.relocks, ac.expired, ac.intervalMin, ac.intervalMax, ac.errorMax, ac.serial ? "bar-serial-24" : ac.tempoLatch ? "tempo-latch" : "pulse-pll", ac.correctionMax, ac.starts, ac.stops, ac.missed, (long long)ac.offset, ac.quantum);
 }
 void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
+    if (c->platform(c) == mPLATFORM_GB) { ACGBClockFrameAt(c, now); return; }
     if (ac.fd < 0 || c->platform(c) != mPLATFORM_GBA) return;
     struct GBA* g = c->board;
     struct ACClockSnapshot s;
@@ -287,6 +291,7 @@ void AudioCastClockFrameAt(struct mCore* c, int64_t now) {
         mTimingSchedule(&g->timing, &ac.rise, (int32_t)delay);
 }
 void AudioCastClockAttach(struct mCore* c) {
+    if (c->platform(c) == mPLATFORM_GB) { ACGBClockAttach(c); return; }
     memset(&ac, 0, sizeof(ac)); ac.fd = -1;
     const char* protocol = getenv("AUDIOCAST_LINK_PROTOCOL");
     ac.serial = protocol && !strcmp(protocol, "fms-gba");
@@ -322,6 +327,7 @@ void AudioCastClockAttach(struct mCore* c) {
     c->setPeripheral(c, mPERIPH_GBA_LINK_PORT, &ac.d);
 }
 void AudioCastClockDetach(struct mCore* c) {
+    if (c->platform(c) == mPLATFORM_GB) { ACGBClockDetach(c); return; }
     if (ac.fd < 0) return;
     if (ac.serial && ac.serialPlaying) serialSend(&ac, 0x03, 0);
     report();

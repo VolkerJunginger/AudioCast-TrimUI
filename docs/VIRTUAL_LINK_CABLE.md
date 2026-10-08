@@ -4,13 +4,13 @@ The intended workflow is **AudioCast ON → open a ROM from its normal game list
 select external sync in that program**. AudioCast supplies the virtual cable in
 the emulator. No app launches FMS or another music program on the user's behalf.
 
-The latest diagnostic tests FMS's native GBA serial protocol: a 24-PPQN clock
+FMS's native GBA serial protocol passed the user's Brick/Push test: a 24-PPQN clock
 with explicit START and STOP. Brick START queues the next four-beat Link boundary;
 a second press cancels a queued start or stops playback. Live tempo changes update
 the tick period without repeating START. The previous change-triggered tempo
 latch is disabled in this test. Timing offset is zero; delay compensation is
 outside this iteration. The working 64 ms audio buffer and temporary CPU policy
-are preserved. This remains a hardware test build, not a stable sync release.
+are preserved. The new settings and Game Boy additions remain a preview, not a stable release.
 
 ## Signal path and supported protocol
 
@@ -47,9 +47,19 @@ PPQ2** in FMS and use its normal START control. It carries tempo pulses without
 an explicit sequence/bar reset. Neither mode implements standard MIDI messages.
 FMS's cable modes are distinct: [FMS external-sync guide](https://lo-bit.club/fms/guide#ext-sync).
 
-Game Boy serial-link input, including DMGo's LINK IN, needs a separate bit/byte
-adapter and protocol validation. The GBA GPIO clock adapter is not a universal
-Game Boy cable: [DMGo description](https://audiowanderer.com/AW/youtube/dmgo-is-out-new-music-program-for-the-good-old-game-boy/).
+## Settings and clock-only mode
+
+Opening AudioCast shows **ENABLED**, **LINK AUDIO** and **CLOCK**. UP/DOWN selects; A changes; B returns. Changes apply at the next normal game launch. ENABLED uses the existing reversible control and ON/OFF icons. LINK AUDIO is saved as data in `Apps/AudioCast/settings.txt` and defaults to ON. OFF keeps classic Link, local clock snapshots and the local speaker active. The sender drains PCM continuously but creates no Link Audio sink or “Brick Out” channel. This prevents a blocked FIFO without streaming silent audio.
+
+## Game Boy / DMGo
+
+The separate `dmgo-gb` adapter supplies `0xF8` bytes through mGBA's actual GB serial shift scheduler and serial interrupt. The developer's **DMGo v1** LINK OUT was observed at **16 clock bytes per quarter note** at its displayed 120 BPM. The byte resembles MIDI clock, but this is a Game Boy cable protocol with DMGo's measured rate, not a MIDI port or standard 24-PPQN MIDI implementation.
+
+Choose **CLOCK: DMGO / GAME BOY**, open DMGo from **Games → GB**, then select **SETUP → SYNC: LINK IN**. Native START still toggles DMGo's transport. AudioCast withholds external ticks until the next four-beat Link boundary; a second START cancels or stops. Tempo changes update subsequent ticks without restarting the sequence. Because this protocol has no external transport-reset byte, the first tick is bar-aligned; resetting an already advanced DMGo pattern to step one remains the program's responsibility. It is not FMS's explicit serial START command.
+
+The adapter is ROM-independent and uses no title check or game RAM patch. It has passed a generated GB receiver test and a private headless test using the [official DMGo v1 download](https://audiowanderer.com/AW/drum-machina-go-or/). No DMGo ROM, saved pattern or BIOS is included in the app or corresponding source. Actual Brick/Push DMGo playback and controller behavior await hardware validation.
+
+It does **not** implement arbitrary Game Link, multiplayer, trading, printing, LSDJ or general MIDI protocols. Other music programs need separate protocol validation.
 
 ## Normal launcher integration
 
@@ -70,16 +80,16 @@ OFFSET_US=0
 ```
 
 `PROTOCOL=off` retains casting alone and is the source default. The experimental
-package enables `gba-clock`. Regular AudioCast ON/OFF governs the normal game
+package defaults to `fms-gba`, 24 PPQN and zero offset. Regular AudioCast ON/OFF governs the normal game
 wrappers as before. The optional bridge starts with the game session and ends
 with it; no always-running FMS launcher is installed.
 
-The normal mGBA core argument is redirected to a private core stored inside
-AudioCast. Other core arguments are preserved. The installed core and RetroArch
+FMS and GPIO modes redirect the normal mGBA argument to the private core.
+DMGo mode also redirects StockUI GB Gambatte arguments to that core, which supports GB. Other core arguments are preserved. The installed core and RetroArch
 binary remain untouched. An external process cannot present a cable to an
 unmodified emulator that exposes no link-port interface; this private core supplies
-that missing interface. Current StockUI integration covers mGBA, not gPSP or
-Gambatte.
+that missing interface. gPSP remains casting-only; the installed Gambatte is never patched.
+Switch CLOCK to OFF to use the original emulator for ordinary GB/GBA games.
 
 Before selection, a helper checks that the private core can be loaded and exports
 the required APIs. A one-byte first-frame handshake under `/tmp` distinguishes
@@ -98,8 +108,7 @@ ends. Nothing changes `/etc/asound.conf`, firmware, RetroArch's binary or minarc
 
 ## Install and undo
 
-This remains an experimental build until normal game launch and actual clock input
-are tested successfully on the Hammer.
+The tested FMS transport is retained. The new settings/clock-only and DMGo combination needs device validation before a stable release.
 
 1. Quit the game and turn the **working AudioCast OFF**. Verify its gray OFF icon.
 2. Back up `Apps/AudioCast` to the Mac. Keep the known-working installer available.
