@@ -45,6 +45,8 @@ jobs:
           ./core-clock-test
           python3 tools/build_probe.py mgba-build --serial --output serial-clock-test
           ./serial-clock-test
+          python3 tools/build_probe.py mgba-build --stepper --output stepper-clock-test
+          timeout 60 ./stepper-clock-test
           python3 tools/build_probe.py mgba-build --gb --output gb-clock-test
           ./gb-clock-test
           python3 tools/build_probe.py mgba-build --audio --output audio-rate-test

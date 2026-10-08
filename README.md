@@ -101,3 +101,5 @@ For **FMS**, choose **FMS / GBA**, launch it from Games → GBA, and set **SYNC 
 For **DMGo**, choose **DMGO / GAME BOY**, launch it from Games → GB, and select **SETUP → SYNC: LINK IN**. START queues the first external clock to the next “one”. The adapter has passed emulator tests with the developer's DMGo v1 ROM, but has not yet been tested on the Brick. DMGo is obtained separately; no ROM is included.
 
 This is **not a universal Game Link implementation**. Each program needs its own protocol. FMS native serial, GBA GPIO pulses and DMGo serial clock are the implemented modes; trading, multiplayer, LSDJ and general MIDI are not supported. See [setup, validation and limits](docs/VIRTUAL_LINK_CABLE.md).
+
+The development preview adds **CLOCK: STEPPER / GBA** with **PPQ: 4, 6, 12, 24, 48 or 96**. Match the rate to STEPPER’s **LINK IN (BPQ)** setting. See [the sync guide](docs/VIRTUAL_LINK_CABLE.md) for transport controls and current validation.

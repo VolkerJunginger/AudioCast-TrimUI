@@ -41,6 +41,12 @@ if core.endswith('mgba-link_libretro.so'):
     assert len(calls)==1 and calls[0]['args'][-3:]==['-L',str(app/'cores/mgba-link_libretro.so'),'Unrelated music program.gba']
     assert 'video_threaded = "false"' in calls[0]['config'] and 'libretro_log_level = "2"' in calls[0]['config']
     assert calls[0]['clock']==str(runtime/'clock.sock') and calls[0]['protocol']=='gba-clock'
+    for rate in [4,6,12,24,48,96]:
+        calls=run(f'PROTOCOL=stepper-gba\nPPQN={rate}\nOFFSET_US=0\n',SIM_READY='1')
+        assert len(calls)==1 and calls[0]['protocol']=='stepper-gba' and calls[0]['args'][-2]==str(app/'cores/mgba-link_libretro.so')
+    for rate in [2,8,16,192]:
+        calls=run(f'PROTOCOL=stepper-gba\nPPQN={rate}\nOFFSET_US=0\n')
+        assert calls[0]['clock'] is None and calls[0]['args'][-2]==stock
     calls=run('PROTOCOL=fms-gba\nPPQN=24\nOFFSET_US=0\n',SIM_READY='1')
     assert len(calls)==1 and calls[0]['protocol']=='fms-gba' and calls[0]['clock']==str(runtime/'clock.sock')
     gb=str(sd/'RetroArch/.retroarch/cores/gambatte_gb_libretro.so')

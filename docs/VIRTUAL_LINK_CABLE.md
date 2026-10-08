@@ -17,6 +17,12 @@ are preserved. The new settings and Game Boy additions remain a preview, not a s
 Push/Live Link beat timeline → the AudioCast sender's optional local clock
 snapshots → emulator virtual link port → ROM external-sync input.
 
+**STEPPER / GBA** adds all STEPPER v1.9 Link input rates: **4, 6, 12, 24, 48 and 96 PPQ**. In LINK4BRICK, choose **CLOCK: STEPPER / GBA**, then choose the rate on the **PPQ** row. In STEPPER's settings, select **LINK IN (the same number BPQ)**. Open STEPPER from the normal **Games → GBA** list. Press **START** to begin: its native transport remains intact, while the first external clock arrives on the next four-beat Link boundary. SELECT+START still saves the bank. Subsequent clock edges follow Link tempo without repeating START. Pause/stop controls within STEPPER remain its own responsibility; use START for a new queued launch.
+
+`stepper-gba` drives active-low pulses on the emulated GBA **SI** pin and raises the GPIO serial interrupt on the falling edge, respecting the pin direction and interrupt-enable bits. This differs from both FMS serial command bytes and polled SC pulses. At high rates, the pulse width shrinks to leave idle time between edges. There is no ROM name check or game memory patch. See [STEPPER's input rates](https://git.badd10de.dev/stepper/tree/src/settings.h?h=lsdjsync) and [input interrupt setup](https://git.badd10de.dev/stepper/tree/src/settings.c?h=lsdjsync).
+
+Only **Link input** rates are offered here. STEPPER's **2 BPQ** choice is an output mode, not a Link input mode. Audio-out and LSDJ-out modes are not incoming Link clock protocols. FMS stays fixed at 24 PPQ, DMGo at 16, and the existing GBA PULSE menu preset at 2. The STEPPER implementation is tested with a generated interrupt receiver at all six rates through 400 BPM; actual Brick/Push playback still needs a device test.
+
 The first backend is **`gba-clock`**, implemented as rising edges on the GBA
 link port's SC pin when the emulated program selects GPIO clock input. It uses
 the emulator's CPU-cycle scheduler, preserves normal audio/pitch, and rejects

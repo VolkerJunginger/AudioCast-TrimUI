@@ -14,10 +14,10 @@
 namespace {
 constexpr int W=1024,H=768;
 struct Menu {
-  int row=0; bool enabled=false,audio=true,available=false; int protocol=0;
+  int row=0; bool enabled=false,audio=true,available=false; int protocol=0,ppqn=2;
   std::string message;
-  const char* protocols[4]={"off","fms-gba","dmgo-gb","gba-clock"};
-  const char* labels[4]={"OFF","FMS / GBA","DMGO / GAME BOY","GBA PULSE"};
+  const char* protocols[5]={"off","fms-gba","dmgo-gb","gba-clock","stepper-gba"};
+  const char* labels[5]={"OFF","FMS / GBA","DMGO / GAME BOY","GBA PULSE","STEPPER / GBA"};
   std::string call(const char* script,const char* action,const char* value=nullptr) {
     int pipefd[2];if(pipe(pipefd))throw std::runtime_error("Settings unavailable");
     pid_t child=fork();
@@ -34,7 +34,8 @@ struct Menu {
   void load() {
     enabled=access("enabled",F_OK)==0;audio=call("settings.sh","get-audio")!="off";
     auto clock=call("settings.sh","get-clock");protocol=0;
-    for(int i=1;i<4;i++)if(clock==protocols[i])protocol=i;
+    for(int i=1;i<5;i++)if(clock==protocols[i])protocol=i;
+    ppqn=std::atoi(call("settings.sh","get-ppqn").c_str());
     available=access("cores/mgba-link_libretro.so",R_OK)==0&&access("bin/audiocast-core-probe",X_OK)==0;
   }
   void change() {
@@ -42,7 +43,13 @@ struct Menu {
       if(row==0)call("control.sh",enabled?"off":"on");
       if(row==1)call("settings.sh","set-audio",audio?"off":"on");
       if(row==2) { if(!available)throw std::runtime_error("INSTALL THE SYNC BUILD TO USE CLOCK SYNC");
-        call("settings.sh","set-clock",protocols[(protocol+1)%4]); }
+        call("settings.sh","set-clock",protocols[(protocol+1)%5]); }
+      if(row==3) {
+        if(protocol!=4)throw std::runtime_error("PPQ IS FIXED FOR THIS CLOCK MODE");
+        const int rates[]={4,6,12,24,48,96};int i=0;
+        while(i<6&&rates[i]!=ppqn)i++;
+        auto value=std::to_string(rates[(i+1)%6]);call("settings.sh","set-ppqn",value.c_str());
+      }
       load();message="SAVED - APPLIES TO THE NEXT GAME";
     }catch(const std::exception& e){message=e.what();}
   }
@@ -65,11 +72,11 @@ struct Canvas {
   }
   void draw(const Menu& m) {
     rect(0,0,W,H,0xff101820);text(48,45,"LINK4BRICK",7,0xff81e4b3);text(48,118,"SETTINGS",3,0xffa8bac3);
-    const std::string rows[3]={std::string("ENABLED: ")+(m.enabled?"ON":"OFF"),std::string("LINK AUDIO: ")+(m.audio?"ON":"OFF"),std::string("CLOCK: ")+m.labels[m.protocol]};
-    for(int i=0;i<3;i++) { rect(36,184+i*108,952,88,i==m.row?0xff244a40:0xff1a2830);
-      if(i==m.row) { rect(36,184+i*108,8,88,0xff81e4b3); }
-      text(60,211+i*108,rows[i],4,i==m.row?0xffeaf8f0:0xffa8bac3); }
-    const char* hint=m.row==0?"ENABLE OR RESTORE YOUR NORMAL GAME LAUNCHERS":m.row==1?"OFF: BRICK SPEAKER AND CLOCK KEEP WORKING":m.protocol==1?"FMS: SYNC IN / GBA - START QUEUES THE ONE":m.protocol==2?"DMGO: SETUP / SYNC: LINK IN":m.protocol==3?"EXTERNAL GPIO CLOCK - 2 PPQN":"CHOOSE THE PROTOCOL USED BY YOUR PROGRAM";
+    const std::string rows[4]={std::string("ENABLED: ")+(m.enabled?"ON":"OFF"),std::string("LINK AUDIO: ")+(m.audio?"ON":"OFF"),std::string("CLOCK: ")+m.labels[m.protocol],m.protocol?std::string("PPQ: ")+std::to_string(m.ppqn)+(m.protocol==4?"":" (FIXED)"):"PPQ: --"};
+    for(int i=0;i<4;i++) { rect(36,170+i*88,952,72,i==m.row?0xff244a40:0xff1a2830);
+      if(i==m.row) { rect(36,170+i*88,8,72,0xff81e4b3); }
+      text(60,191+i*88,rows[i],4,i==m.row?0xffeaf8f0:0xffa8bac3); }
+    const char* hint=m.row==0?"ENABLE OR RESTORE YOUR NORMAL GAME LAUNCHERS":m.row==1?"OFF: BRICK SPEAKER AND CLOCK KEEP WORKING":m.row==3?(m.protocol==4?"MATCH STEPPER LINK IN (BPQ) TO THIS VALUE":"PPQ IS FIXED FOR THIS CLOCK MODE"):m.protocol==4?"STEPPER: LINK IN - START QUEUES THE ONE":m.protocol==1?"FMS: SYNC IN / GBA - START QUEUES THE ONE":m.protocol==2?"DMGO: SETUP / SYNC: LINK IN":m.protocol==3?"EXTERNAL GPIO CLOCK - 2 PPQN":"CHOOSE THE PROTOCOL USED BY YOUR PROGRAM";
     text(48,536,hint,3,0xffa8bac3);text(48,593,m.message,2,0xff81e4b3);
     text(48,667,"UP/DOWN: SELECT   A: CHANGE   B: BACK",3,0xffeaf8f0);
     text(48,716,"CHANGES APPLY WHEN YOU NEXT OPEN A GAME",2,0xffa8bac3);
@@ -107,7 +114,7 @@ struct SDL {
 int main(int argc,char** argv) {
   try { Menu m;m.load();Canvas canvas;
     if(argc>=3&&!strcmp(argv[1],"--render")){canvas.draw(m);canvas.save(argv[2]);return 0;}
-    if(argc>=3&&!strcmp(argv[1],"--change")){m.row=std::atoi(argv[2]);if(m.row<0||m.row>2)return 2;m.change();std::puts(m.message.c_str());return m.message.find("SAVED")==0?0:1;}
+    if(argc>=3&&!strcmp(argv[1],"--change")){m.row=std::atoi(argv[2]);if(m.row<0||m.row>3)return 2;m.change();std::puts(m.message.c_str());return m.message.find("SAVED")==0?0:1;}
     SDL s;if(s.Init(0x20|0x2000))throw std::runtime_error(s.GetError());
     auto window=s.CreateWindow("LINK4BRICK",0x2fff0000,0x2fff0000,W,H,0x1005);if(!window)throw std::runtime_error(s.GetError());
     auto renderer=s.CreateRenderer(window,-1,2|4);if(!renderer)renderer=s.CreateRenderer(window,-1,1);if(!renderer)throw std::runtime_error(s.GetError());
@@ -119,7 +126,7 @@ int main(int argc,char** argv) {
       auto key=[&](int k){return k<n&&keys[k];};auto button=[&](int b){return controller&&s.GameControllerGetButton(controller,b);};
       unsigned current=(key(82)||button(11)?1:0)|(key(81)||button(12)?2:0)|(key(4)||key(40)||button(1)?4:0)|(key(5)||key(41)||button(0)?8:0);
       unsigned pressed=current&~previous;previous=current;
-      if(pressed&1){m.row=(m.row+2)%3;m.message.clear();}if(pressed&2){m.row=(m.row+1)%3;m.message.clear();}
+      if(pressed&1){m.row=(m.row+3)%4;m.message.clear();}if(pressed&2){m.row=(m.row+1)%4;m.message.clear();}
       if(pressed&4) { m.change(); }
       if(pressed&8) { done=true; }
       canvas.draw(m);s.UpdateTexture(texture,nullptr,canvas.pixels.data(),W*4);s.RenderCopy(renderer,texture,nullptr,nullptr);s.RenderPresent(renderer);

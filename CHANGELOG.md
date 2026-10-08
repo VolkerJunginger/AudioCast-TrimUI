@@ -2,6 +2,9 @@
 
 ## Unreleased — clock/settings preview
 
+- Add STEPPER GPIO interrupt clock with selectable 4, 6, 12, 24, 48 and 96 PPQ, and START queued to the next Link one.
+- Include final user-provided LINK4BRICK ON/OFF artwork unchanged.
+
 - App renamed LINK4BRICK; existing SD-card paths stay compatible.
 - Preserve supplied ON/OFF icons in packages and repair the active icon whenever settings open.
 
