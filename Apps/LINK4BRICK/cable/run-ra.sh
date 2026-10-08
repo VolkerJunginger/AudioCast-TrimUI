@@ -1,5 +1,6 @@
 #!/bin/sh
 # Normal launcher integration: choose by core/protocol, never by ROM filename.
+AUDIOCAST_AUDIO_BUFFER_MS=$(/bin/sh "$AC_APP/settings.sh" get-buffer) || exit 1
 selected=0
 remaining=$#
 while [ "$remaining" -gt 0 ]; do
@@ -7,9 +8,9 @@ while [ "$remaining" -gt 0 ]; do
   if [ "$argument" = -L ] && [ "$remaining" -gt 0 ]; then
     core="$1"; shift; remaining=$((remaining - 1))
     case "$core" in
-      */mgba_libretro.so|*/gambatte_gb_libretro.so|*/gambatte_libretro.so)
+      */mgba_libretro.so)
         case "$AUDIOCAST_LINK_PROTOCOL:$core" in
-          dmgo-gb:*/gambatte_gb_libretro.so|dmgo-gb:*/gambatte_libretro.so|dmgo-gb:*/mgba_libretro.so|fms-clock:*/mgba_libretro.so|stepper-gba:*/mgba_libretro.so|fms-gba:*/mgba_libretro.so|gba-clock:*/mgba_libretro.so) ;;
+          fms-clock:*/mgba_libretro.so|stepper-gba:*/mgba_libretro.so|fms-gba:*/mgba_libretro.so) ;;
           *) set -- "$@" -L "$core"; continue;;
         esac
         set -- "$@" -L "$AC_APP/cores/mgba-link_libretro.so"
@@ -42,7 +43,7 @@ audio_sync = "true"
 video_vsync = "false"
 audio_rate_control = "false"
 audio_max_timing_skew = "0.0"
-audio_latency = "64"
+audio_latency = "$AUDIOCAST_AUDIO_BUFFER_MS"
 CFG
 /bin/sh "$AC_APP/cable/runtime-performance.sh" "$AC_SD/RetroArch/ra64.trimui" --config "$AC_RUN/ra.cfg" --appendconfig "$AC_RUN/override.cfg" "$@"
 result=$?

@@ -1,5 +1,14 @@
 # Release history
 
+## LINK4BRICK settings and GBA preview
+
+- Minimal grayscale settings with antialiased Inter type and updated maintainer artwork.
+- FMS GBA, FMS Clock and STEPPER modes only; managed launchers limited to GBA.
+- Adjustable RetroArch audio buffer: 0–150 ms in 10 ms steps, default 60 ms.
+- Folder-first migration to Apps/LINK4BRICK; internal names retained for compatibility.
+- Reversible Terminal installer preserves private states and audio preferences and restores managed GB launchers.
+
+
 ## Unreleased — clock/settings preview
 
 - Add FMS CLOCK mode with selectable 1, 2, 3, 4, 6 and 8 PPQ; retain fixed-24 FMS GBA serial sync.

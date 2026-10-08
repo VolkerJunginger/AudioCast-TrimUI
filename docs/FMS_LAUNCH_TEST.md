@@ -18,7 +18,7 @@ It does **not** supply a Link clock or claim that FMS sync works.
 5. Check whether FMS opens and whether playing notes produces sound on the Brick
    and Push. Use ordinary FMS playback, without switching it to CLOCK input.
 
-The test uses separate saves under `Apps/AudioCastFMSCheck/saves`; your normal FMS
+The test uses separate saves under `Apps/LINK4BRICKFMSCheck/saves`; your normal FMS
 save is left alone. The initial pattern bank will therefore be fresh.
 
 The installed AudioCast sender, ALSA probe and session supervisor are reused
@@ -29,6 +29,6 @@ No diagnostic log file is created. If normal AudioCast is OFF, its capture route
 is unavailable, or the stock GBA invocation is unsupported, this app refuses to
 run the compatibility check.
 
-Close the test and remove `Apps/AudioCastFMSCheck` to uninstall. Keep that app's
+Close the test and remove `Apps/LINK4BRICKFMSCheck` to uninstall. Keep that app's
 `saves` folder if you created patterns you want to retain. This test deliberately
 uses the regular AudioCast session lifetime; its existing cleanup is unchanged.

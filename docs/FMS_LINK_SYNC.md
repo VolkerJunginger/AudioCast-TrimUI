@@ -17,10 +17,10 @@ build, not a replacement for the stable AudioCast v0.2.2 release.
 ## Install
 
 1. Extract **AudioCast-StockUI-FMS-Link-Sync-preview.zip** onto the SD card.
-   The new app folder is `Apps/AudioCastSync`. No `.pak` installation is used.
+   The new app folder is `Apps/LINK4BRICKSync`. No `.pak` installation is used.
    When copying with Finder, copy only `AudioCastSync` into the existing `Apps`
    folder; do not replace the whole `Apps` folder.
-2. Edit `Apps/AudioCastSync/rom-path.txt` to contain the path of your own FMS ROM,
+2. Edit `Apps/LINK4BRICKSync/rom-path.txt` to contain the path of your own FMS ROM,
    relative to the SD root. The default is `Roms/GBA/fms.gba`. Paths with spaces
    work. FMS is not included.
 3. Boot StockUI, enable Wi-Fi, and join the same Link session as Push/Live.
@@ -34,7 +34,7 @@ build, not a replacement for the stable AudioCast v0.2.2 release.
 6. Use START in FMS to start/stop its sequencer. Change BPM on Push/Live to test
    tempo following. Keep FMS in CLOCK input mode while using this app.
 
-The preview uses separate saves in `Apps/AudioCastSync/saves`, so the first launch
+The preview uses separate saves in `Apps/LINK4BRICKSync/saves`, so the first launch
 starts with a fresh FMS setup. The app creates that directory at launch. To use
 an existing pattern bank, copy your FMS battery save into this folder as
 `<ROM basename>.srm`, keeping your original save. Do not import an old save state
@@ -78,7 +78,7 @@ consistent audible lead or lag.
 
 ## Reversal and boundaries
 
-To uninstall, close FMS Link Sync and remove `Apps/AudioCastSync` from the SD card.
+To uninstall, close FMS Link Sync and remove `Apps/LINK4BRICKSync` from the SD card.
 Keep its `saves` folder if you want your new patterns. Nothing is written to
 `/etc/asound.conf`, firmware, the installed emulator cores, RetroArch's binary or
 minarch. Runtime ALSA/RetroArch configuration and IPC live only under `/tmp`.

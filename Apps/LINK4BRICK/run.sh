@@ -52,11 +52,14 @@ pcm.ac_game {
 }
 pcm.!default { type asym playback.pcm "ac_game" capture.pcm "ac_capture" }
 EOF
+AUDIOCAST_AUDIO_BUFFER_MS=$(/bin/sh "$AC_APP/settings.sh" get-buffer) || exit 1
+export AUDIOCAST_AUDIO_BUFFER_MS
 cat >"$AC_RUN/override.cfg" <<EOF
 audio_driver = "alsa"
 audio_device = "ac_game"
 audio_out_rate = "48000"
 audio_enable = "true"
+audio_latency = "$AUDIOCAST_AUDIO_BUFFER_MS"
 log_to_file = "false"
 config_save_on_exit = "false"
 auto_overrides_enable = "false"

@@ -27,7 +27,7 @@ Turn OFF before deleting/upgrading the app or changing GB/GBA launcher scripts.
 OFF restores original launcher bytes. Edited launchers/backups are preserved
 and reported rather than overwritten.
 Each managed script has .audiocast-original and .audiocast-run files; checksums
-and paths are recorded in Apps/AudioCast/launchers.list. An interrupted install
+and paths are recorded in Apps/LINK4BRICK/launchers.list. An interrupted install
 or restore can be retried by launching AudioCast again.
 If the app is removed, wrappers fall back to their adjacent originals.
 For manual restoration, replace each wrapped GB/GBA launch*.sh with its matching

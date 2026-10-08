@@ -19,10 +19,10 @@ if not a.host:
     for file in [a.core] + [a.build / n for n in names]: check_arm64(file)
 with tempfile.TemporaryDirectory() as tmp:
     stage = Path(tmp)
-    app = stage / "Apps/AudioCastSync"
-    shutil.copytree(root / "Apps/AudioCastSync", app)
+    app = stage / "Apps/LINK4BRICKSync"
+    shutil.copytree(root / "Apps/LINK4BRICKSync", app)
     for name in ["run.sh", "start-game.sh", "run-ra.sh"]:
-        shutil.copyfile(root / "Apps/AudioCast" / name, app / name)
+        shutil.copyfile(root / "Apps/LINK4BRICK" / name, app / name)
     # The private socket can survive a forced emulator kill; this session owns it.
     run = app / "run.sh"
     runtime_script = run.read_text().replace('/tmp/audiocast-v0.2b', '/tmp/audiocast-fms-sync').replace('/tmp/audiocast.fifo', '/tmp/audiocast-fms-sync.fifo')
@@ -48,11 +48,11 @@ with tempfile.TemporaryDirectory() as tmp:
             if f.is_file(): z.write(f, f.relative_to(stage))
     with zipfile.ZipFile(a.output) as z:
         assert z.testzip() is None
-        assert all(n.startswith(("Apps/AudioCastSync/", "LICENSES/")) or n in ("README.txt", "THIRD_PARTY.txt") for n in z.namelist())
+        assert all(n.startswith(("Apps/LINK4BRICKSync/", "LICENSES/")) or n in ("README.txt", "THIRD_PARTY.txt") for n in z.namelist())
         assert not any(n.endswith((".gba", ".gb", ".sav", ".srm", ".log", ".pak")) for n in z.namelist())
-        assert json.loads(z.read("Apps/AudioCastSync/config.json"))["label"] == "FMS Link Sync"
+        assert json.loads(z.read("Apps/LINK4BRICKSync/config.json"))["label"] == "FMS Link Sync"
         for n in names:
-            assert z.getinfo("Apps/AudioCastSync/bin/" + n).external_attr >> 16 & 0o111
+            assert z.getinfo("Apps/LINK4BRICKSync/bin/" + n).external_attr >> 16 & 0o111
     digest = hashlib.sha256(a.output.read_bytes()).hexdigest()
     a.output.with_suffix(a.output.suffix+".sha256").write_text(f"{digest}  {a.output.name}\n")
 print("PASS: ZIP integrity, ARM64 (unless --host), StockUI layout, executables, licenses, no ROMs/saves/logs/.pak")

@@ -16,11 +16,11 @@ Leave and reopen Apps. If needed, reboot. Icon switching was confirmed on the te
 
 ## Incomplete upgrade or missing activation records
 
-If `Apps/AudioCast/enabled` and `launchers.list` are missing, but GB/GBA launchers still have adjacent `.audiocast-original` and `.audiocast-run` files, the app folder may have been replaced while casting was enabled. The launcher wrappers fall back to the originals, while activation refuses to overwrite existing backups.
+If `Apps/LINK4BRICK/enabled` and `launchers.list` are missing, but GB/GBA launchers still have adjacent `.audiocast-original` and `.audiocast-run` files, the app folder may have been replaced while casting was enabled. The launcher wrappers fall back to the originals, while activation refuses to overwrite existing backups.
 
 **Do not delete the backups to force activation.** They are the original launchers you need for recovery.
 
-1. Shut down the Brick and back up `Apps/AudioCast`, `Emus/GB` and `Emus/GBA` to your computer.
+1. Shut down the Brick and back up `Apps/LINK4BRICK`, `Emus/GB` and `Emus/GBA` to your computer.
 2. For each affected launcher, inspect the current file. An AudioCast wrapper starts with `# AudioCast v0.2b managed wrapper` and calls AudioCast's `run.sh` or the adjacent `.audiocast-original`.
 3. Restore only confirmed AudioCast wrappers from their **matching** `.audiocast-original` files. If an original is missing, edited or uncertain, stop and seek help. Never substitute another emulator's launcher.
 4. Verify each restored file is byte-for-byte identical to its backup. Only then remove that launcher's `.audiocast-original` and `.audiocast-run` companions from the SD card. Retain the computer backup.
@@ -32,7 +32,7 @@ The development repair was specific to one verified card and is deliberately not
 
 ## Turn off and uninstall
 
-Quit the game and launch AudioCast again. OFF restores known original launcher bytes. Only after successful restoration should you delete `Apps/AudioCast`.
+Quit the game and launch AudioCast again. OFF restores known original launcher bytes. Only after successful restoration should you delete `Apps/LINK4BRICK`.
 
 An OFF icon means the activation marker is absent. If restoration encountered an edited launcher or damaged backup, casting is disabled but those recovery files are retained. Preserve them and inspect before uninstalling.
 

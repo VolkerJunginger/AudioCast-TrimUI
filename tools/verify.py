@@ -21,8 +21,8 @@ def command(args, ok=True, **kw):
 
 
 def setup(tmp, build=None):
-    app = tmp / "Apps/AudioCast"
-    shutil.copytree(ROOT / "Apps/AudioCast", app)
+    app = tmp / "Apps/LINK4BRICK"
+    shutil.copytree(ROOT / "Apps/LINK4BRICK", app)
     # Small stand-ins test state selection without a graphics dependency.
     (app / "icon-on.png").write_bytes(b"on-image")
     (app / "icon-off.png").write_bytes(b"off-image")
@@ -86,7 +86,7 @@ def launchers(fixtures=None, build=None):
         assert "ON:" in out
         assert (app / "icon.png").read_bytes() == b"on-image"
         manifest = (app / "launchers.list").read_text().splitlines()
-        eligible = {p: data for p, data in originals.items() if p.parent.name in ["GB", "GBA"]}
+        eligible = {p: data for p, data in originals.items() if p.parent.name == "GBA"}
         assert len(manifest) == len(eligible), (len(manifest), len(eligible), out)
         for p, data in eligible.items():
             assert p.read_bytes() == (app / "wrapper.sh").read_bytes()
@@ -171,7 +171,7 @@ def launchers(fixtures=None, build=None):
         assert all(p.read_bytes() == data for p, data in originals.items())
         assert (app / "icon.png").read_bytes() == b"off-image"
         os.environ["PATH"] = old_path
-        print(f"PASS: {len(eligible)} GB/GBA launchers restored; {len(originals)-len(eligible)} others unchanged; absent system cksum, helper failures, corrupt/blank manifests, user edits and interrupted restore")
+        print(f"PASS: {len(eligible)} GBA launchers restored; {len(originals)-len(eligible)} others unchanged; absent system cksum, helper failures, corrupt/blank manifests, user edits and interrupted restore")
 
 
 def checksums(build):
@@ -244,7 +244,7 @@ def runtime(build):
         run.write_text(run.read_text().replace(
             'pcm.ac_speaker { type hw card "audiocodec" device 0 }',
             'pcm.ac_speaker { type null }'))
-        emulator = tmp / "Emus/GB/launch.sh"
+        emulator = tmp / "Emus/GBA/launch.sh"
         emulator.parent.mkdir(parents=True)
         emulator.write_text('#!/bin/sh\nRA_DIR="$TEST_RA"\n'
                             'HOME=$RA_DIR/ $RA_DIR/ra64.trimui "$@"\n')
@@ -256,7 +256,7 @@ def runtime(build):
         env = dict(os.environ, TEST_RA=str(ra.parent))
         original_config = (ra.parent / "retroarch.cfg").read_bytes()
         command(["sh", str(app / "control.sh"), "on"])
-        command(["sh", str(emulator), "ROM with spaces.gb"], env=env)
+        command(["sh", str(emulator), "ROM with spaces.gba"], env=env)
         assert (tmp / "playback-ok").exists()
         assert not list(tmp.rglob("*.log"))
         assert 'log_to_file = "false"' in run.read_text()
@@ -264,18 +264,18 @@ def runtime(build):
         # unmodified production launch above. No log file is used.
         quiet_run = run.read_text()
         run.write_text(quiet_run.replace("exec >/dev/null 2>&1", ":"))
-        out = command(["sh", str(emulator), "ROM with spaces.gb"], env=env)
+        out = command(["sh", str(emulator), "ROM with spaces.gba"], env=env)
         assert "session ended: fifo_bytes=1152000" in out, out
         assert "PLAYBACK_OK" in out
         run.write_text(quiet_run)
         args = (tmp / "args.txt").read_text().splitlines()
         assert args[0] == "--config" and args[2] == "--appendconfig"
-        assert args[-1] == "ROM with spaces.gb"
+        assert args[-1] == "ROM with spaces.gba"
         assert (ra.parent / "retroarch.cfg").read_bytes() == original_config
         assert not list(temp.iterdir()), list(temp.iterdir())
         command(["sh", str(app / "control.sh"), "off"])
-        gba = tmp / "Emus/GBA/launch.sh"
-        gba.parent.mkdir(parents=True)
+        gba = tmp / "Emus/GBA/launch_secondary.sh"
+        gba.parent.mkdir(parents=True, exist_ok=True)
         gba.write_bytes(emulator.read_bytes())
         command(["sh", str(app / "control.sh"), "on"])
         command(["sh", str(gba), "Advance game with spaces.gba"], env=env)
@@ -290,18 +290,19 @@ def runtime(build):
                       'test -z "${ALSA_CONFIG_PATH:-}" || exit 9\n'
                       'printf "%s\\n" "$@" >"$AC_SD/fallback-args.txt"\n')
         command(["sh", str(app / "control.sh"), "on"])
-        command(["sh", str(emulator), "Fallback.gb"], env=env)
-        assert (tmp / "fallback-args.txt").read_text().splitlines() == ["Fallback.gb"]
+        command(["sh", str(emulator), "Fallback.gba"], env=env)
+        assert (tmp / "fallback-args.txt").read_text().splitlines() == ["Fallback.gba"]
         assert not list(temp.iterdir())
         command(["sh", str(app / "control.sh"), "off"])
         assert not list(tmp.rglob("*.log"))
-        print("PASS: silent .gb and .gba wrapper -> original RetroArch path -> real ALSA plug/file -> FIFO -> sender; failed-preflight fallback")
+        print("PASS: silent .gba wrapper -> original RetroArch path -> real ALSA plug/file -> FIFO -> sender; failed-preflight fallback")
 
 
 def package(path):
-    expected = {"LICENSE.txt", "THIRD_PARTY.txt", "LICENSES/Ableton-Link.md", "LICENSES/Asio.txt", "README.txt", "Apps/AudioCast/config.json", "Apps/AudioCast/icon.png", "Apps/AudioCast/icon-on.png", "Apps/AudioCast/icon-off.png"}
-    expected |= {f"Apps/AudioCast/{p.name}" for p in (ROOT / "Apps/AudioCast").glob("*.sh")}
-    expected |= {f"Apps/AudioCast/bin/{p}" for p in ["alsa-probe", "linkaudio-send", "audiocast-session", "audiocast-cksum", "audiocast-settings"]}
+    expected = {"LICENSE.txt", "THIRD_PARTY.txt", "LICENSES/Ableton-Link.md", "LICENSES/Asio.txt", "README.txt", "Apps/LINK4BRICK/config.json", "Apps/LINK4BRICK/icon.png", "Apps/LINK4BRICK/icon-on.png", "Apps/LINK4BRICK/icon-off.png"}
+    expected |= {f"Apps/LINK4BRICK/{p.name}" for p in (ROOT / "Apps/LINK4BRICK").glob("*.sh")}
+    expected |= {"Apps/LINK4BRICK/settings.txt", "Apps/LINK4BRICK/ui/font.bin", "Apps/LINK4BRICK/ui/logo.rgba", "LICENSES/Inter-OFL.txt"}
+    expected |= {f"Apps/LINK4BRICK/bin/{p}" for p in ["alsa-probe", "linkaudio-send", "audiocast-session", "audiocast-cksum", "audiocast-settings"]}
     with zipfile.ZipFile(path) as z:
         assert z.testzip() is None
         assert {i.filename for i in z.infolist() if not i.is_dir()} == expected
@@ -314,20 +315,20 @@ def package(path):
                 data = z.read(info)
                 assert data[:6] == b"\x7fELF\x02\x01"
                 assert int.from_bytes(data[18:20], "little") == 183
-        config = json.loads(z.read("Apps/AudioCast/config.json"))
+        config = json.loads(z.read("Apps/LINK4BRICK/config.json"))
         assert config["launch"] == "launch.sh" and config["label"] == "LINK4BRICK"
         assert config["icontop"] == "icon.png" and config["icon"] == ""
         from PIL import Image
         from io import BytesIO
         for name in ["icon.png", "icon-on.png", "icon-off.png"]:
-            icon = Image.open(BytesIO(z.read("Apps/AudioCast/" + name)))
+            icon = Image.open(BytesIO(z.read("Apps/LINK4BRICK/" + name)))
             assert icon.size == (256, 256) and icon.mode in ("RGBA", "RGB", "P")
             icon.load()
             assert icon.convert("RGBA").getextrema()[3][1] == 255
-        assert z.read("Apps/AudioCast/icon.png") == z.read("Apps/AudioCast/icon-on.png")
-        assert z.read("Apps/AudioCast/icon-on.png") != z.read("Apps/AudioCast/icon-off.png")
+        assert z.read("Apps/LINK4BRICK/icon.png") == z.read("Apps/LINK4BRICK/icon-on.png")
+        assert z.read("Apps/LINK4BRICK/icon-on.png") != z.read("Apps/LINK4BRICK/icon-off.png")
         for script in ["launch.sh", "run.sh"]:
-            assert "exec >/dev/null 2>&1" in z.read("Apps/AudioCast/" + script).decode()
+            assert "exec >/dev/null 2>&1" in z.read("Apps/LINK4BRICK/" + script).decode()
     print("PASS: StockUI ZIP layout, CRC, ARM64 executables, modes, no .pak")
 
 

@@ -3,9 +3,9 @@ import json,os,shutil,subprocess,tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parent.parent
 with tempfile.TemporaryDirectory(prefix='audiocast-fms-check-') as t:
-    sd=Path(t)/'SD with spaces';app=sd/'Apps/AudioCastFMSCheck';regular=sd/'Apps/AudioCast'
-    shutil.copytree(ROOT/'Apps/AudioCastFMSCheck',app)
-    shutil.copytree(ROOT/'Apps/AudioCast',regular)
+    sd=Path(t)/'SD with spaces';app=sd/'Apps/LINK4BRICKFMSCheck';regular=sd/'Apps/LINK4BRICK'
+    shutil.copytree(ROOT/'Apps/LINK4BRICKFMSCheck',app)
+    shutil.copytree(ROOT/'Apps/LINK4BRICK',regular)
     for p in app.iterdir():
         if p.suffix=='.sh' or '.audiocast-' in p.name:p.chmod(0o755)
     (regular/'enabled').touch()

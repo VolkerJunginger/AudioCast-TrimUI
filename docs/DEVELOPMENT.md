@@ -2,7 +2,7 @@
 
 ## Layout
 
-- `Apps/AudioCast/`: the StockUI app and reversible game-launcher scripts.
+- `Apps/LINK4BRICK/`: the StockUI app and reversible game-launcher scripts.
 - `src/sender.cpp`: 48 kHz stereo Link Audio sender.
 - `src/session.cpp`: supervised FIFO relay and process cleanup.
 - `src/checksum.cpp`: bundled POSIX-compatible checksum helper.

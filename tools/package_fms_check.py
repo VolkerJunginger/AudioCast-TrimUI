@@ -11,8 +11,8 @@ args=parser.parse_args()
 header=args.core.read_bytes()[:64]
 assert header[:6]==b'\x7fELF\x02\x01' and struct.unpack_from('<H',header,18)[0]==183
 with tempfile.TemporaryDirectory() as t:
-    stage=Path(t);app=stage/'Apps/AudioCastFMSCheck'
-    shutil.copytree(ROOT/'Apps/AudioCastFMSCheck',app)
+    stage=Path(t);app=stage/'Apps/LINK4BRICKFMSCheck'
+    shutil.copytree(ROOT/'Apps/LINK4BRICKFMSCheck',app)
     (app/'cores').mkdir();shutil.copyfile(args.core,app/'cores/mgba_libretro.so')
     subprocess.run([sys.executable,str(ROOT/'tools/make_icon.py'),str(app/'icon.png'),'on'],check=True)
     # Original geometric T badge distinguishes the temporary test app.
@@ -36,9 +36,9 @@ with tempfile.TemporaryDirectory() as t:
             if p.is_file():z.write(p,p.relative_to(stage))
     with zipfile.ZipFile(args.output) as z:
         assert z.testzip() is None
-        assert all(n.startswith(('Apps/AudioCastFMSCheck/','LICENSES/')) or n in ['README.txt','THIRD_PARTY.txt'] for n in z.namelist())
+        assert all(n.startswith(('Apps/LINK4BRICKFMSCheck/','LICENSES/')) or n in ['README.txt','THIRD_PARTY.txt'] for n in z.namelist())
         assert not any(n.lower().endswith(('.gba','.gb','.sav','.srm','.log','.pak')) for n in z.namelist())
-        assert json.loads(z.read('Apps/AudioCastFMSCheck/config.json'))['label']=='FMS Launch Test'
+        assert json.loads(z.read('Apps/LINK4BRICKFMSCheck/config.json'))['label']=='FMS Launch Test'
         assert not any('/bin/' in n for n in z.namelist()), 'No duplicate audio components'
     args.output.with_suffix(args.output.suffix+'.sha256').write_text(hashlib.sha256(args.output.read_bytes()).hexdigest()+'  '+args.output.name+'\n')
 print('PASS: ARM64 core, ZIP integrity, additive StockUI layout, no replacement AudioCast/launchers/ROMs/saves/logs/.pak')

@@ -33,3 +33,7 @@ its notice is in `LICENSES/mGBA-inih.txt`. Its integration patch and `sync/mgba-
 are supplied under MPL-2.0. The clock protocol header and the remaining AudioCast
 components use GPL-2.0-or-later. Corresponding preview source contains the pinned
 mGBA checkout, patch, and all additions. FMS and DMGo are not distributed.
+
+## Inter menu typography
+
+Inter is copyright The Inter Project Authors and distributed under SIL Open Font License 1.1. The menu uses generated grayscale glyph masks; the corresponding Inter font, atlas generator and license are supplied with source. The runtime has no font-library dependency. See [LICENSES/Inter-OFL.txt](LICENSES/Inter-OFL.txt) and https://github.com/rsms/inter.

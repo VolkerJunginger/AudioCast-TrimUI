@@ -25,13 +25,17 @@ jobs:
           cd link
           git checkout 902aef95bf94af49746fdda5369b42cdcfa1e6d2
           git submodule update --init --recursive
+      - name: Generate verified menu font assets
+        run: |
+          sudo apt-get install -y python3-pil
+          python3 tools/make_ui_assets.py
       - name: Build and test launcher routing, ALSA and process cleanup
         run: |
           set -eu
           cmake -S . -B host-build -DLINK_DIR="$PWD/link"
           cmake --build host-build -j2
           python3 tools/verify.py --build host-build
-          for script in Apps/AudioCast/*.sh; do sh -n "$script"; done
+          for script in Apps/LINK4BRICK/*.sh; do sh -n "$script"; done
   build:
     needs: verify
     runs-on: ubuntu-latest
@@ -45,6 +49,10 @@ jobs:
           cd link
           git checkout 902aef95bf94af49746fdda5369b42cdcfa1e6d2
           git submodule update --init --recursive
+      - name: Generate verified menu font assets
+        run: |
+          apt-get update && apt-get install -y python3-pil
+          python3 tools/make_ui_assets.py
       - name: Build ARM64 StockUI tools
         run: |
           set -eu
@@ -56,16 +64,19 @@ jobs:
       - name: Package and verify StockUI ZIP
         run: |
           set -eu
-          mkdir -p release/Apps/AudioCast/bin
-          install -m 0755 Apps/AudioCast/*.sh release/Apps/AudioCast/
-          install -m 0644 Apps/AudioCast/config.json release/Apps/AudioCast/
-          install -m 0644 Apps/AudioCast/icon-on.png Apps/AudioCast/icon-off.png release/Apps/AudioCast/
-          cp release/Apps/AudioCast/icon-on.png release/Apps/AudioCast/icon.png
-          install -m 0755 build/linkaudio-send build/audiocast-session build/alsa-probe build/audiocast-cksum build/audiocast-settings release/Apps/AudioCast/bin/
+          mkdir -p release/Apps/LINK4BRICK/bin
+          install -m 0755 Apps/LINK4BRICK/*.sh release/Apps/LINK4BRICK/
+          install -m 0644 Apps/LINK4BRICK/config.json Apps/LINK4BRICK/settings.txt release/Apps/LINK4BRICK/
+          cp -a Apps/LINK4BRICK/ui release/Apps/LINK4BRICK/
+
+          install -m 0644 Apps/LINK4BRICK/icon-on.png Apps/LINK4BRICK/icon-off.png release/Apps/LINK4BRICK/
+          cp release/Apps/LINK4BRICK/icon-on.png release/Apps/LINK4BRICK/icon.png
+          install -m 0755 build/linkaudio-send build/audiocast-session build/alsa-probe build/audiocast-cksum build/audiocast-settings release/Apps/LINK4BRICK/bin/
           install -m 0644 INSTALL.txt release/README.txt
           install -m 0644 LICENSE release/LICENSE.txt
           install -m 0644 THIRD_PARTY.md release/THIRD_PARTY.txt
           mkdir -p release/LICENSES
+          install -m 0644 LICENSES/Inter-OFL.txt release/LICENSES/
           install -m 0644 LICENSES/Ableton-Link.md release/LICENSES/
           install -m 0644 link/modules/asio-standalone/asio/LICENSE_1_0.txt release/LICENSES/Asio.txt
           cd release

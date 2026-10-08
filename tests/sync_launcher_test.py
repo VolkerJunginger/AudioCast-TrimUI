@@ -8,8 +8,8 @@ import tempfile
 ROOT = Path(__file__).resolve().parent.parent
 with tempfile.TemporaryDirectory(prefix="ac-sync-test-") as tmp:
     sd = Path(tmp) / "SD with spaces"
-    app = sd / "Apps/AudioCastSync"
-    shutil.copytree(ROOT / "Apps/AudioCastSync", app)
+    app = sd / "Apps/LINK4BRICKSync"
+    shutil.copytree(ROOT / "Apps/LINK4BRICKSync", app)
     rom = sd / "Roms/GBA/My FMS.gba"
     rom.parent.mkdir(parents=True)
     rom.write_bytes(b"private ROM stand-in; never executed")

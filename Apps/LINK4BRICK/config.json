@@ -1,6 +1,6 @@
 {
   "label": "LINK4BRICK",
-  "description": "Link audio and clock sync for GB/GBA on TrimUI Brick",
+  "description": "Link audio and GBA clock sync for FMS and STEPPER",
   "launch": "launch.sh",
   "icontop": "icon.png",
   "icon": ""

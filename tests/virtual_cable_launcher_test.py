@@ -3,8 +3,8 @@ from pathlib import Path
 import json,os,shutil,subprocess,tempfile
 ROOT=Path(__file__).resolve().parent.parent
 with tempfile.TemporaryDirectory(prefix='ac-virtual-cable-') as t:
-    sd=Path(t)/'SD with spaces';app=sd/'Apps/AudioCast';runtime=Path(t)/'runtime'
-    shutil.copytree(ROOT/'Apps/AudioCast',app);runtime.mkdir()
+    sd=Path(t)/'SD with spaces';app=sd/'Apps/LINK4BRICK';runtime=Path(t)/'runtime'
+    shutil.copytree(ROOT/'Apps/LINK4BRICK',app);runtime.mkdir()
     (app/'bin').mkdir();(app/'cores').mkdir()
     (app/'cores/mgba-link_libretro.so').write_bytes(b'core stand-in')
     probe=app/'bin/audiocast-core-probe'
@@ -35,12 +35,12 @@ if core.endswith('mgba-link_libretro.so'):
         result=subprocess.run(['sh',str(entry)]+(args or ['-v','-L',stock,'Unrelated music program.gba']),env=dict(env,**extra),capture_output=True)
         assert result.returncode==0,result
         return json.loads(capture.read_text())
-    active='PROTOCOL=gba-clock\nPPQN=2\nOFFSET_US=0\n'
+    active='PROTOCOL=fms-gba\nPPQN=24\nOFFSET_US=0\n'
     calls=run('PROTOCOL=off\n');assert len(calls)==1 and calls[0]['args'][-3:]==['-L',stock,'Unrelated music program.gba'] and calls[0]['clock'] is None
     calls=run(active,SIM_READY='1')
     assert len(calls)==1 and calls[0]['args'][-3:]==['-L',str(app/'cores/mgba-link_libretro.so'),'Unrelated music program.gba']
     assert 'video_threaded = "false"' in calls[0]['config'] and 'libretro_log_level = "2"' in calls[0]['config']
-    assert calls[0]['clock']==str(runtime/'clock.sock') and calls[0]['protocol']=='gba-clock'
+    assert calls[0]['clock']==str(runtime/'clock.sock') and calls[0]['protocol']=='fms-gba'
     for rate in [1,2,3,4,6,8]:
         calls=run(f'PROTOCOL=fms-clock\nPPQN={rate}\nOFFSET_US=0\n',SIM_READY='1')
         assert len(calls)==1 and calls[0]['protocol']=='fms-clock'
@@ -56,13 +56,16 @@ if core.endswith('mgba-link_libretro.so'):
     calls=run('PROTOCOL=fms-gba\nPPQN=24\nOFFSET_US=0\n',SIM_READY='1')
     assert len(calls)==1 and calls[0]['protocol']=='fms-gba' and calls[0]['clock']==str(runtime/'clock.sock')
     gb=str(sd/'RetroArch/.retroarch/cores/gambatte_gb_libretro.so')
-    calls=run('PROTOCOL=dmgo-gb\nPPQN=16\nOFFSET_US=0\n',['-L',gb,'DMGo.gb'],SIM_READY='1')
-    assert len(calls)==1 and calls[0]['args'][-2]==str(app/'cores/mgba-link_libretro.so') and calls[0]['protocol']=='dmgo-gb'
-    assert 'audio_latency = "64"' in calls[0]['config']
-    calls=run('PROTOCOL=fms-gba\nPPQN=24\nOFFSET_US=0\n',['-L',gb,'Ordinary.gb'])
-    assert calls[0]['args'][-2]==gb and calls[0]['clock'] is None
     calls=run('PROTOCOL=dmgo-gb\nPPQN=16\nOFFSET_US=0\n',['-L',gb,'DMGo.gb'])
-    assert len(calls)==2 and calls[1]['args'][-2]==gb and calls[1]['clock'] is None
+    assert len(calls)==1 and calls[0]['args'][-2]==gb and calls[0]['clock'] is None
+    calls=run(active,['-L',gb,'Ordinary.gb'])
+    assert calls[0]['args'][-2]==gb and calls[0]['clock'] is None
+    for value in range(0,151,10):
+        (app/'settings.txt').write_text(f'LINK_AUDIO=off\nAUDIO_BUFFER_MS={value}\n')
+        calls=run(active,SIM_READY='1')
+        assert f'audio_latency = "{value}"' in calls[0]['config']
+    (app/'settings.txt').write_text('AUDIO_BUFFER_MS=64\n')
+    calls=run(active,SIM_READY='1');assert 'audio_latency = "60"' in calls[0]['config']
     # Failures before any frame must fall back, including frontend exit code 0.
     for code in ['0','1','139']:
         calls=run(active,PRIVATE_RESULT=code)

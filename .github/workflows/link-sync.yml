@@ -1,7 +1,7 @@
 name: Experimental Virtual Link Cable
 on:
   pull_request:
-    paths: ['sync/**', 'tests/**', 'src/sender.cpp', 'src/pcm_timeline.h', 'src/tempo_hold.h', 'src/core_probe.cpp', 'src/settings.cpp', 'CMakeLists.txt', 'tools/*sync*', 'tools/*mgba*', 'tools/build_probe.py', 'tools/prepare_link.py', 'tools/package_virtual_cable.py', 'Apps/AudioCast/**', 'docs/VIRTUAL_LINK_CABLE.md', '.github/workflows/link-sync.yml']
+    paths: ['sync/**', 'tests/**', 'src/sender.cpp', 'src/pcm_timeline.h', 'src/tempo_hold.h', 'src/core_probe.cpp', 'src/settings.cpp', 'src/ui_font.h', 'tools/make_ui_assets.py', 'CMakeLists.txt', 'tools/*sync*', 'tools/*mgba*', 'tools/build_probe.py', 'tools/prepare_link.py', 'tools/package_virtual_cable.py', 'Apps/LINK4BRICK/**', 'docs/VIRTUAL_LINK_CABLE.md', '.github/workflows/link-sync.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -10,6 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Generate verified menu font assets
+        run: |
+          sudo apt-get update && sudo apt-get install -y python3-pil
+          python3 tools/make_ui_assets.py
       - name: Validate clock grid and input data
         run: |
           cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror tests/clock_test.c -lm -o clock-test
@@ -18,7 +22,7 @@ jobs:
           ./pcm-timeline-test
           c++ -std=c++17 -Wall -Wextra -Werror tests/tempo_hold_test.cpp -o tempo-hold-test
           ./tempo-hold-test
-          for script in Apps/AudioCast/*.sh Apps/AudioCast/cable/*.sh; do sh -n "$script"; done
+          for script in Apps/LINK4BRICK/*.sh Apps/LINK4BRICK/cable/*.sh; do sh -n "$script"; done
           python3 tests/virtual_cable_launcher_test.py
       - name: Test the real sender clock bridge with a second Link participant
         run: |
@@ -69,6 +73,10 @@ jobs:
           git -C link submodule update --init --recursive
           python3 tools/prepare_link.py link
           python3 tools/prepare_mgba.py mgba
+      - name: Generate verified menu font assets
+        run: |
+          apt-get update && apt-get install -y python3-pil
+          python3 tools/make_ui_assets.py
       - name: Build ARM64 sender and isolated core
         run: |
           cmake -S . -B build -DLINK_DIR="$PWD/link" -DCMAKE_BUILD_TYPE=Release \
@@ -93,11 +101,12 @@ jobs:
         run: |
           apt-get update && apt-get install -y python3-pil zip unzip
           python3 tools/package_virtual_cable.py --build build --core mgba-build/mgba_libretro.so \
-            --link link --output dist/AudioCast-StockUI-Virtual-Link-Cable-preview.zip
-          unzip -t dist/AudioCast-StockUI-Virtual-Link-Cable-preview.zip
+            --link link --output dist/LINK4BRICK-StockUI-preview.zip
+          unzip -t dist/LINK4BRICK-StockUI-preview.zip
           mkdir -p source
           git -c safe.directory="$PWD" archive HEAD | tar -x -C source
-          cp -a link mgba source/
+          cp -a link mgba assets source/
+          cp -a Apps/LINK4BRICK/ui source/Apps/LINK4BRICK/
           find source -name .git -prune -exec rm -rf {} +
           # Upstream emulator test fixtures are not needed to rebuild this core.
           rm -rf source/mgba/cinema
@@ -106,9 +115,9 @@ jobs:
           forbidden = {'.gb', '.gba', '.sav', '.srm', '.log', '.pak'}
           assert not any(p.suffix.lower() in forbidden for p in Path('source').rglob('*') if p.is_file())
           PYTHON
-          tar -czf dist/AudioCast-Virtual-Link-Cable-source.tar.gz -C source .
+          tar -czf dist/LINK4BRICK-source.tar.gz -C source .
           cd dist
-          sha256sum AudioCast-StockUI-Virtual-Link-Cable-preview.zip AudioCast-Virtual-Link-Cable-source.tar.gz > SHA256SUMS
+          sha256sum LINK4BRICK-StockUI-preview.zip LINK4BRICK-source.tar.gz > SHA256SUMS
           sha256sum -c SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
