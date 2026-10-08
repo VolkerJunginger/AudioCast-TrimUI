@@ -19,7 +19,8 @@ Play FMS or STEPPER from the normal StockUI GBA game list. Hear audio on the Bri
 - Uses the final ON/OFF icons and a minimal settings page. The audio buffer is fixed at **65 ms**.
 - Installs on the SD card, with reversible launcher routing and no runtime log files.
 
-**Tested setup:** TrimUI Brick Hammer, StockUI, FMS GBA and Ableton Push. The user confirmed stable audio, tempo following and queued starts in FMS GBA. STEPPER has its own tested emulator sync implementation; performance with individual ROM versions still needs hardware confirmation. Other firmware and Game Boy sync are not supported by this release. This is a music sync adapter, not a general multiplayer Game Link emulator.
+**Tested setup:** TrimUI Brick Hammer, StockUI, FMS GBA and Ableton Push. STEPPER has its own tested emulator sync implementation.
+Other firmware and Game Boy sync are not supported by this release. 
 
 ## Install from Terminal
 
@@ -29,7 +30,7 @@ Download **LINK4BRICK-StockUI-v1.0.0.zip** and **install_link4brick.py** from th
 python3 ~/Downloads/install_link4brick.py --card /Volumes/128GBRICK
 ```
 
-Use your actual card path if it differs. The installer verifies the package, keeps existing settings and launcher backups, and saves an undo journal on your computer. Upgrading LINK4BRICK preserves its enabled state. If upgrading from the old **AudioCast** app, first turn that app OFF on the Brick; it must restore its launchers before installing LINK4BRICK.
+Use your actual card path if it differs. The installer verifies the package, keeps existing settings and launcher backups, and saves an undo journal on your computer. Upgrading LINK4BRICK preserves its enabled state.
 
 Eject the card, reboot the Brick and open **Apps → LINK4BRICK**. Enable it in settings, then open your ROM from **Games → GBA** as usual. You do not need a separate FMS launcher. On Push, enable Link and choose **Brick Out** after opening the game. Both devices must share a network that permits Link discovery.
 
@@ -43,8 +44,6 @@ Eject the card, reboot the Brick and open **Apps → LINK4BRICK**. Enable it in 
 | PPQ | FMS GBA: 24; FMS Clock: 1, 2, 3, 4, 6, 8; STEPPER: 4, 6, 12, 24, 48, 96 |
 
 Start with **FMS GBA / 24 PPQ** and set FMS to **SYNC IN / GBA**. Press START on the Brick to queue the next “one.” Match the program's sync input and PPQ when using FMS Clock or STEPPER. Change settings with the game closed.
-
-The “one” is a four-beat Link phase boundary. Audio transport adds latency; compensate for incoming audio on Push as appropriate. LINK4BRICK does not apply extra delay compensation. The icon reflects whether routing is enabled, rather than whether a peer is connected.
 
 ## Reversible by design
 
