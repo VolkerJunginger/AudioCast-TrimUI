@@ -41,7 +41,10 @@ with tempfile.TemporaryDirectory() as t:
     assert 'Apps/LINK4BRICK/enabled' not in z.namelist() and 'Apps/LINK4BRICK/launchers.list' not in z.namelist()
     assert 100000<len(z.read('Apps/LINK4BRICK/ui/font.bin'))<200000
     assert len(z.read('Apps/LINK4BRICK/ui/logo.rgba'))==25600
-    assert b'AUDIO_BUFFER_MS=60' in z.read('Apps/LINK4BRICK/settings.txt')
+    assert z.read('Apps/LINK4BRICK/settings.txt') == b'LINK_AUDIO=on\n'
+    for rel in ['run.sh','cable/run-ra.sh']:
+      assert b'audio_latency = "65"' in z.read('Apps/LINK4BRICK/'+rel)
+    assert b'Audio buffer' not in z.read('Apps/LINK4BRICK/bin/audiocast-settings')
     for n in bins:assert (z.getinfo('Apps/LINK4BRICK/bin/'+n).external_attr>>16)&0o111
   args.output.with_suffix(args.output.suffix+'.sha256').write_text(hashlib.sha256(args.output.read_bytes()).hexdigest()+'  '+args.output.name+'\n')
 print('PASS: ARM64 unless --host, ZIP integrity, one LINK4BRICK app, normal game launch, disabled install state, no ROMs/saves/logs/.pak')
