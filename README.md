@@ -7,7 +7,7 @@
 
 LINK4BRICK runs from the SD card on **StockUI**. Open your music program from the normal **Games → GBA** menu. Audio continues through the Brick speaker; **Link audio** can be enabled for streaming to the **Brick Out** channel on Push, or disabled for clock-only use.
 
-This development preview follows the user's successful FMS tempo and queued-start tests. The refreshed menu, adjustable audio buffer and folder migration still need the next Brick playback test. The existing published audio-only release remains separate.
+This development preview follows the user's successful FMS tempo and queued-start tests. Playback buffering is now fixed at the user-selected 65 ms. The next Brick test checks FMS GBA START alignment with measured delivery timing. The existing published audio-only release remains separate.
 
 ## Settings
 
@@ -21,9 +21,8 @@ Use **Up / Down** to select a row, **Left / Right** to adjust, **A** to change a
 | Link audio | On / Off; Off keeps local sound and Link clock active |
 | Sync mode | Off, FMS - GBA, STEPPER, FMS - Clock |
 | Pulses per beat | FMS GBA: fixed 24; STEPPER: 4 / 6 / 12 / 24 / 48 / 96; FMS Clock: 1 / 2 / 3 / 4 / 6 / 8 |
-| Audio buffer | 0–150 ms, in 10 ms steps; default 60 ms |
 
-The buffer setting controls **RetroArch playback buffering**, previously fixed at 64 ms for sync games. Zero requests the driver's minimum; it cannot remove device, Wi-Fi or receiver latency. Lower values reduce buffering but may cause dropouts. No delay compensation is applied; compensate incoming audio on Push as needed.
+RetroArch playback buffering is fixed at **65 ms** for normal and sync launches. The buffer option has been removed; older saved buffer values are ignored. No delay compensation is applied; compensate incoming audio on Push as needed.
 
 GB/DMGo sync is retired from this menu. This preview manages GBA launchers only. FMS and STEPPER use different GameLink protocols; this is not universal multiplayer, trading or MIDI support.
 

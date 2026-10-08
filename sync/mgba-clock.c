@@ -108,6 +108,15 @@ static void serialRising(struct mTiming* t, struct ACDriver* a, uint32_t late) {
         a->last = (int64_t)llround(a->startBeat * 24);
         if (a->diagnostics) fprintf(stderr, "AUDIOCAST_TRANSPORT START beat=%.6f quantum=%d advance_us=%lld\n",
             a->startBeat, a->quantum, (long long)a->offset);
+        if (a->diagnostics) {
+            int64_t delivered = ac_monotonic_us();
+            if (ac_clock_valid(&a->clock, delivered)) {
+                double beat = ac_beat_at(&a->clock, delivered);
+                double error = (beat - a->startBeat) * 60000000.0 / a->clock.tempo;
+                fprintf(stderr, "AUDIOCAST_START_TIMING target_beat=%.6f delivery_beat=%.6f delivery_error_us=%.1f tempo=%.3f measurement=host-callback audio_latency_ms=65\n",
+                    a->startBeat, beat, error, a->clock.tempo);
+            }
+        }
     } else {
         a->last = a->pending;
         if (!serialSend(a, 0x01, late)) { a->wanted = 0; return; }

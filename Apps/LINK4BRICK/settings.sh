@@ -4,11 +4,9 @@ set -u
 umask 077
 APP="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)" || exit 1
 AUDIO=on
-BUFFER=60
-valid_buffer() { case "$1" in 0|10|20|30|40|50|60|70|80|90|100|110|120|130|140|150) return 0;; *) return 1;; esac; }
 if [ -f "$APP/settings.txt" ] && [ ! -L "$APP/settings.txt" ]; then
   while IFS='=' read -r name value; do
-    case "$name:$value" in LINK_AUDIO:on) AUDIO=on;; LINK_AUDIO:off) AUDIO=off;; AUDIO_BUFFER_MS:*) if valid_buffer "$value"; then BUFFER=$value; fi;; esac
+    case "$name:$value" in LINK_AUDIO:on) AUDIO=on;; LINK_AUDIO:off) AUDIO=off;; esac
   done < "$APP/settings.txt"
 fi
 CLOCK=off
@@ -19,14 +17,12 @@ if [ -f "$APP/cable/config.txt" ] && [ ! -L "$APP/cable/config.txt" ]; then
   done < "$APP/cable/config.txt"
 fi
 case "${1:-show}" in
-  show) printf 'LINK_AUDIO=%s\nPROTOCOL=%s\nAUDIO_BUFFER_MS=%s\n' "$AUDIO" "$CLOCK" "$BUFFER"; exit 0;;
+  show) printf 'LINK_AUDIO=%s\nPROTOCOL=%s\n' "$AUDIO" "$CLOCK"; exit 0;;
   audio-value) [ "$AUDIO" != off ] && echo 1 || echo 0; exit 0;;
   get-audio) echo "$AUDIO"; exit 0;;
   get-clock) echo "$CLOCK"; exit 0;;
   get-ppqn) echo "$PPQN"; exit 0;;
-  get-buffer) echo "$BUFFER"; exit 0;;
   set-audio) case "${2:-}" in on|off) target="$APP/settings.txt";; *) exit 2;; esac;;
-  set-buffer) valid_buffer "${2:-}" || exit 2; target="$APP/settings.txt";;
   set-clock) case "${2:-}" in off|fms-gba|stepper-gba|fms-clock) target="$APP/cable/config.txt";; *) exit 2;; esac;;
   set-ppqn)
     case "$CLOCK:${2:-}" in
@@ -46,10 +42,9 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM HUP
 case "$1" in
-  set-audio|set-buffer)
+  set-audio)
     [ "$1" != set-audio ] || AUDIO=$2
-    [ "$1" != set-buffer ] || BUFFER=$2
-    (set -C; printf 'LINK_AUDIO=%s\nAUDIO_BUFFER_MS=%s\n' "$AUDIO" "$BUFFER" > "$TEMP") || exit 1;;
+    (set -C; printf 'LINK_AUDIO=%s\n' "$AUDIO" > "$TEMP") || exit 1;;
   *)
     [ -d "$APP/cable" ] || exit 1
     protocol=$2; ppqn=24

@@ -30,7 +30,7 @@ if core.endswith('mgba-link_libretro.so'):
     def run(settings,args=None,**extra):
         config.write_text(settings);capture.unlink(missing_ok=True)
         (runtime/'clock.sock.ready').unlink(missing_ok=True)
-        (runtime/'override.cfg').write_text('audio_device = "ac_game"\nconfig_save_on_exit = "false"\n')
+        (runtime/'override.cfg').write_text('audio_device = "ac_game"\naudio_latency = "65"\nconfig_save_on_exit = "false"\n')
         (runtime/'ra.cfg').write_text('untouched copied config\n')
         result=subprocess.run(['sh',str(entry)]+(args or ['-v','-L',stock,'Unrelated music program.gba']),env=dict(env,**extra),capture_output=True)
         assert result.returncode==0,result
@@ -60,16 +60,16 @@ if core.endswith('mgba-link_libretro.so'):
     assert len(calls)==1 and calls[0]['args'][-2]==gb and calls[0]['clock'] is None
     calls=run(active,['-L',gb,'Ordinary.gb'])
     assert calls[0]['args'][-2]==gb and calls[0]['clock'] is None
-    for value in range(0,151,10):
+    for value in ['0','60','65','150','$(touch attacked)']:
         (app/'settings.txt').write_text(f'LINK_AUDIO=off\nAUDIO_BUFFER_MS={value}\n')
         calls=run(active,SIM_READY='1')
-        assert f'audio_latency = "{value}"' in calls[0]['config']
+        assert 'audio_latency = "65"' in calls[0]['config']
     (app/'settings.txt').write_text('AUDIO_BUFFER_MS=64\n')
-    calls=run(active,SIM_READY='1');assert 'audio_latency = "60"' in calls[0]['config']
+    calls=run(active,SIM_READY='1');assert 'audio_latency = "65"' in calls[0]['config']
     # Failures before any frame must fall back, including frontend exit code 0.
     for code in ['0','1','139']:
         calls=run(active,PRIVATE_RESULT=code)
-        assert calls[1]['config']=='audio_device = "ac_game"\nconfig_save_on_exit = "false"\n'
+        assert calls[1]['config']=='audio_device = "ac_game"\naudio_latency = "65"\nconfig_save_on_exit = "false"\n'
         assert len(calls)==2 and calls[1]['args'][-3:]==['-L',stock,'Unrelated music program.gba'] and calls[1]['clock'] is None
     for settings in ['PROTOCOL=gb-serial\n','PROTOCOL=$(touch attacked)\n','PROTOCOL=gba-clock\nPPQN=24\n','PROTOCOL=fms-gba\nPPQN=2\n','PROTOCOL=gba-clock\nOFFSET_US=999999999999999999999\n']:
         calls=run(settings);assert len(calls)==1 and calls[0]['clock'] is None and calls[0]['args'][-2]==stock

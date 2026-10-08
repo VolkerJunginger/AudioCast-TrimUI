@@ -1,6 +1,5 @@
 #!/bin/sh
 # Normal launcher integration: choose by core/protocol, never by ROM filename.
-AUDIOCAST_AUDIO_BUFFER_MS=$(/bin/sh "$AC_APP/settings.sh" get-buffer) || exit 1
 selected=0
 remaining=$#
 while [ "$remaining" -gt 0 ]; do
@@ -43,7 +42,7 @@ audio_sync = "true"
 video_vsync = "false"
 audio_rate_control = "false"
 audio_max_timing_skew = "0.0"
-audio_latency = "$AUDIOCAST_AUDIO_BUFFER_MS"
+audio_latency = "65"
 CFG
 /bin/sh "$AC_APP/cable/runtime-performance.sh" "$AC_SD/RetroArch/ra64.trimui" --config "$AC_RUN/ra.cfg" --appendconfig "$AC_RUN/override.cfg" "$@"
 result=$?

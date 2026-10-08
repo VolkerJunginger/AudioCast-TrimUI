@@ -19,9 +19,9 @@ GB/DMGo and generic GPIO presets are no longer exposed or enabled. Upstream mGBA
 
 ## Audio buffer
 
-**Audio buffer** requests RetroArch ALSA playback latency from 0 to 150 ms in steps of 10. The default is 60 ms, the closest offered value to the previous 64 ms override. It applies with clock on or off and with Link audio on or off. The private sync override uses the same saved value. Fallback to the installed core restores the base temporary configuration, including that value.
+RetroArch ALSA playback buffering is fixed at **65 ms**, with clock on or off and Link audio on or off. The menu has no buffer control; obsolete saved buffer values are ignored. The private sync override and fallback retain 65 ms. This does not change Link network packets or Push's receiver buffer.
 
-Zero is a request for the driver minimum, not a guarantee of zero latency. Hardware may round the value. The setting does not resize Link network packets or directly control Push's receiver buffer. Speaker output is retained. Changes take effect at the next game launch.
+FMS GBA retains the previously tested clock scheduler and four-beat queued start. Diagnostic builds now record `AUDIOCAST_START_TIMING`: target beat, actual host callback beat and signed delivery error in microseconds. This measures virtual serial START delivery, not when the first note becomes audible. Hardware results are needed to distinguish clock alignment from playback buffering.
 
 ## Migration
 
@@ -31,10 +31,10 @@ Use `--undo` from the same installer directory to restore the old app folder and
 
 ## Validation and limits
 
-- Real menu actions, all 16 buffer choices, reverse adjustment, PPQ choices and settings persistence are checked.
-- Launcher tests check the new folder paths, mGBA selection, rejection of unsupported modes, fallback, exact buffer override values and preservation of spaced ROM arguments.
+- Real menu actions, removed buffer controls, reverse adjustment, PPQ choices and settings persistence are checked.
+- Launcher tests check the new folder paths, mGBA selection, rejection of unsupported modes, fallback, fixed 65 ms overrides and rejection of obsolete buffer values and preservation of spaced ROM arguments.
 - Existing FMS serial timing and generated STEPPER/FMS-clock pulse tests are retained, including tempo changes and queued starts.
 - ARM64 builds and private-core lifecycle tests run in CI; packages are checked for ZIP integrity, executable architecture, licenses, assets and absence of ROMs/saves/logs/`.pak`.
-- The next audible Brick/Push test must validate the new menu and buffer values. Previous FMS sync was confirmed by the user; automated tests are not proof of Wi-Fi or speaker performance at every buffer setting.
+- The next audible Brick/Push test must check queued START alignment. Previous FMS sync was confirmed by the user; automated tests do not prove audible bar alignment.
 
 Normal packages discard output. The tailored diagnostic installer preserves `AudioCast-Link-Sync-test.log` and its bounded output capture. The logger always drains frontend output even if it cannot write the SD log, keeping logging outside audio flow control.

@@ -32,17 +32,18 @@ with tempfile.TemporaryDirectory(prefix='ac-settings-') as d:
     cli(menu,'--change','2');assert cli(*helper,'get-clock')=='off'
     cli(menu,'--change','0');assert launcher.read_bytes()==original and (app/'icon.png').read_bytes()==b'off'
     (app/'settings.txt').write_text('LINK_AUDIO=$(touch HACKED)\nBAD=1\n');assert cli(*helper,'audio-value')=='1' and not (app/'HACKED').exists()
-    for value in range(0,151,10):
-        cli(*helper,'set-buffer',str(value));assert cli(*helper,'get-buffer')==str(value)
-        cli(*helper,'set-audio','off');assert cli(*helper,'get-buffer')==str(value)
-    cli(menu,'--change','4');assert cli(*helper,'get-buffer')=='0'
-    cli(menu,'--change','4','-1');assert cli(*helper,'get-buffer')=='150'
+    # Removed buffer actions cannot alter old settings or execute data.
+    for value in ['0','60','65','150','$(touch HACKED)']:
+        (app/'settings.txt').write_text('LINK_AUDIO=off\nAUDIO_BUFFER_MS='+value+'\n')
+        before=(app/'settings.txt').read_bytes()
+        cli(*helper,'set-buffer','65',ok=False);cli(*helper,'get-buffer',ok=False)
+        cli(menu,'--change','4',ok=False)
+        assert (app/'settings.txt').read_bytes()==before and cli(*helper,'get-audio')=='off'
+        cli(*helper,'set-audio','on');assert (app/'settings.txt').read_text()=='LINK_AUDIO=on\n'
     cli(menu,'--change','2','-1');assert cli(*helper,'get-clock')=='fms-clock'
-    for bad in ['-10','1','64','151','200','$(touch HACKED)']:
-        before=(app/'settings.txt').read_bytes();cli(*helper,'set-buffer',bad,ok=False);assert (app/'settings.txt').read_bytes()==before
     for bad in ['dmgo-gb','gba-clock','gb-serial']:
         cli(*helper,'set-clock',bad,ok=False)
-    (app/'settings.txt').write_text('LINK_AUDIO=off\nAUDIO_BUFFER_MS=$(touch HACKED)\n');assert cli(*helper,'get-buffer')=='60'
+    (app/'settings.txt').write_text('LINK_AUDIO=off\nAUDIO_BUFFER_MS=$(touch HACKED)\n');assert cli(*helper,'get-audio')=='off' and not (app/'HACKED').exists()
     (app/'settings.txt').unlink();(app/'settings.txt').symlink_to(sd/'sentinel');(sd/'sentinel').write_text('unchanged');cli(*helper,'set-audio','off',ok=False);assert (sd/'sentinel').read_text()=='unchanged'
     (app/'settings.txt').unlink()
     busy=Path('/tmp/audiocast-v0.2b');assert not busy.exists();busy.mkdir()
