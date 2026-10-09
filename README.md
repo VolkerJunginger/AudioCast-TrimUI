@@ -20,19 +20,12 @@ Play FMS or STEPPER from the normal StockUI GBA game list. Hear audio on the Bri
 - Installs on the SD card, with reversible launcher routing and no runtime log files.
 
 **Tested setup:** TrimUI Brick Hammer, StockUI, FMS GBA and Ableton Push. STEPPER has its own tested emulator sync implementation.
-Other firmware and Game Boy sync are not supported by this release. 
+Other firmware and Game Boy sync are not supported by this release.
 
-## Install from Terminal
-
-Download **LINK4BRICK-StockUI-v1.0.0.zip** and **install_link4brick.py** from the [release page](https://github.com/VolkerJunginger/LINK4BRICK/releases/latest), placing them in the same folder. Close the game, shut down the Brick and connect its SD card to your computer. With Python 3 installed, run:
-
-```sh
-python3 ~/Downloads/install_link4brick.py --card /Volumes/128GBRICK
-```
-
-Use your actual card path if it differs. The installer verifies the package, keeps existing settings and launcher backups, and saves an undo journal on your computer. Upgrading LINK4BRICK preserves its enabled state.
-
-Eject the card, reboot the Brick and open **Apps → LINK4BRICK**. Enable it in settings, then open your ROM from **Games → GBA** as usual. You do not need a separate FMS launcher. On Push, enable Link and choose **Brick Out** after opening the game. Both devices must share a network that permits Link discovery.
+## Install
+- Copy the LINK4BRICK folder it into the SD card’s Apps folder: Apps/LINK4BRICK.
+- Eject the card and reboot the Brick.
+- Open LINK4BRICK and set Enabled → ON.
 
 ## Settings
 
