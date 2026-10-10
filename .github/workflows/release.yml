@@ -87,6 +87,7 @@ jobs:
             tests/libretro_lifecycle.c -ldl -o build/libretro-lifecycle
           L4B_SYSROOT=$(/opt/aarch64-nextui-linux-gnu/bin/aarch64-nextui-linux-gnu-gcc -print-sysroot)
           (cd Apps/LINK4BRICK && qemu-aarch64 -cpu cortex-a53 -L "$L4B_SYSROOT" ../../build/audiocast-settings --render /tmp/link4brick-menu.ppm)
+          env -u AUDIOCAST_CLOCK_SOCKET qemu-aarch64 -cpu cortex-a53 -L "$L4B_SYSROOT" build/linkclock-send
           qemu-aarch64 -cpu cortex-a53 -L "$L4B_SYSROOT" build/audiocast-core-probe mgba-build/mgba_libretro.so
           qemu-aarch64 -cpu cortex-a53 -L "$L4B_SYSROOT" build/libretro-lifecycle mgba-build/mgba_libretro.so
       - name: Package verified StockUI app and corresponding source

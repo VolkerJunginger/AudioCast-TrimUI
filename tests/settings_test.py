@@ -4,7 +4,7 @@ from pathlib import Path
 root=Path(__file__).resolve().parent.parent;build=Path(sys.argv[1]).resolve()
 with tempfile.TemporaryDirectory(prefix='ac-settings-') as d:
     sd=Path(d);app=sd/'Apps/LINK4BRICK';shutil.copytree(root/'Apps/LINK4BRICK',app);(app/'bin').mkdir();(app/'cores').mkdir()
-    for n in ['audiocast-cksum','audiocast-core-probe','audiocast-settings','linkaudio-send','audiocast-session','alsa-probe']:shutil.copy(build/n,app/'bin'/n)
+    for n in ['audiocast-cksum','audiocast-core-probe','audiocast-settings','linkaudio-send','linkclock-send','audiocast-session','alsa-probe']:shutil.copy(build/n,app/'bin'/n)
     (app/'cores/mgba-link_libretro.so').write_bytes(b'fixture')
     for state in ['on','off']:(app/('icon-'+state+'.png')).write_bytes(state.encode())
     (sd/'RetroArch').mkdir();(sd/'RetroArch/ra64.trimui').write_text('#!/bin/sh\nexit 0\n');(sd/'RetroArch/ra64.trimui').chmod(0o755)
