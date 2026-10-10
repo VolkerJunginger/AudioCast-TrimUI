@@ -26,6 +26,27 @@ with tempfile.TemporaryDirectory(prefix='l4b-clock-only-') as d:
             heartbeats.append((stamp,beat,tempo,peers))
         out=peer.communicate(timeout=4)[0];assert peer.returncode==0,out
         assert {90,150}<=found,found
+        # Compare the shared four-beat phase, allowing each client's local
+        # beat number to differ by whole bars. Tempo matching alone cannot
+        # establish that queued START reaches the peer's next "one".
+        phase_errors=[];phase_tempos=set()
+        for line in out.splitlines():
+            if not line.startswith('PHASE '):continue
+            _,stamp,beat,tempo=line.split();stamp=int(stamp);beat=float(beat);tempo=float(tempo)
+            if stamp-heartbeats[0][0]<2000000:continue
+            sample=min(heartbeats,key=lambda s:abs(s[0]-stamp))
+            assert abs(sample[0]-stamp)<20000
+            # Ignore the exact tempo-edit instant; the reference may already
+            # have committed it before the remote process observes the change.
+            if abs(sample[2]-tempo)>=.01:continue
+            predicted=sample[1]+(stamp-sample[0])*sample[2]/60000000
+            phase_error=((predicted-beat+2)%4)-2
+            phase_errors.append(abs(phase_error)*60000000/tempo)
+            phase_tempos.add(round(tempo))
+        assert len(phase_errors)>=4,phase_errors
+        assert {90,150}<=phase_tempos,phase_tempos
+        assert max(phase_errors)<10000,phase_errors
+        print('PASS: shared next-one phase versus Link Audio peer, max error %.1f us'%max(phase_errors))
         assert sender.poll() is None,'Closed stdin must not stop the clock'
         assert len(heartbeats)>1000,len(heartbeats)
         span=(heartbeats[-1][0]-heartbeats[0][0])/1e6
