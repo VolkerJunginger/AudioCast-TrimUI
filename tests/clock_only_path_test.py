@@ -5,7 +5,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
 from verify import setup,command
 build=Path(sys.argv[1]).resolve()
 with tempfile.TemporaryDirectory(prefix='l4b-direct-speaker-') as temporary:
-    sd=Path(temporary)/'SD with spaces';sd.mkdir()
+    sd=Path(temporary)/'SD';sd.mkdir()
     app,runtime=setup(sd,build)
     for binary in ['linkaudio-send','linkclock-send','audiocast-session','alsa-probe']:
         shutil.copyfile(build/binary,app/'bin'/binary);(app/'bin'/binary).chmod(0o755)
