@@ -1,6 +1,6 @@
 LINK4BRICK v1.0.1 adds a dedicated clock-only path for TrimUI Brick Hammer / StockUI.
 
-With **Link audio OFF**, sound goes directly to the Brick speaker and a separate plain Link process follows live tempo and four-beat phase. This removes the capture FIFO, PCM pipe/relay, sample scanning and Link Audio engine from that mode. Clock delivery runs on a fixed timer and continues without PCM input.
+With **Link audio OFF**, sound goes directly to the Brick speaker and a separate clock process follows live tempo and four-beat phase. It uses the same Link client as the streaming path with audio sharing disabled. This removes the capture FIFO, PCM pipe/relay, sample scanning and audio sink from that mode. Clock delivery runs on a fixed timer and continues without PCM input.
 
 The working audio-streaming sender and the entire emulator clock/audio integration are unchanged. FMS GBA START still queues the next four-beat “one,” PPQ choices and the 65 ms speaker buffer remain unchanged, and normal settings/save files are preserved by the Terminal installer.
 

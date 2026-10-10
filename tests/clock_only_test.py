@@ -6,11 +6,17 @@ build=Path(sys.argv[1]).resolve()
 with tempfile.TemporaryDirectory(prefix='l4b-clock-only-') as d:
     path=d+'/clock.sock';sock=socket.socket(socket.AF_UNIX,socket.SOCK_DGRAM)
     sock.bind(path);sock.settimeout(.5)
+    peer=None
+    if '--peer-first' in sys.argv[2:]:
+        peer=subprocess.Popen([str(build/'link-audio-peer'),'--clock-only'],
+            stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+        time.sleep(1.1)
     sender=subprocess.Popen([str(build/'linkclock-send')],stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,stderr=subprocess.STDOUT,
         env=dict(os.environ,AUDIOCAST_CLOCK_SOCKET=path))
-    peer=subprocess.Popen([str(build/'link-audio-peer'),'--clock-only'],
-        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+    if peer is None:
+        peer=subprocess.Popen([str(build/'link-audio-peer'),'--clock-only'],
+            stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     found=set();heartbeats=[]
     try:
         deadline=time.monotonic()+18

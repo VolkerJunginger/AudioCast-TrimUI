@@ -19,7 +19,7 @@ The sender follows the live Ableton Link timeline. It does not periodically latc
 
 The emulator places cable events on its cycle timeline and preserves audio production separately. The audio path converts to fixed 48 kHz stereo PCM, maintains bounded recovery and uses a 65 ms RetroArch buffer. The buffer is fixed because this setting worked well in hardware testing.
 
-Incoming audio still has transport latency. Compensate it on Push; LINK4BRICK does not add delay compensation. Link's tempo/phase sync and Link Audio transport are separate: turning Link audio OFF keeps the virtual clock and local speaker available through a dedicated plain Link process. Its timer follows the live timeline independently of audio production. PCM goes directly to the speaker; no capture FIFO, relay or audio-sharing engine is used. The private core's fixed-rate speaker conversion remains active to preserve stable playback.
+Incoming audio still has transport latency. Compensate it on Push; LINK4BRICK does not add delay compensation. Link's tempo/phase sync and Link Audio transport are separate: turning Link audio OFF keeps the virtual clock and local speaker available through a dedicated clock process. It uses the streaming client's Link implementation with audio sharing disabled and no audio sink. Its timer follows the live timeline independently of audio production. PCM goes directly to the speaker; no capture FIFO or relay is used. The private core's fixed-rate speaker conversion remains active to preserve stable playback.
 
 ## What changes while enabled
 

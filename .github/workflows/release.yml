@@ -32,6 +32,7 @@ jobs:
           python3 tests/settings_test.py host-build
           python3 tests/virtual_cable_launcher_test.py
           python3 tests/clock_only_test.py host-build
+          python3 tests/clock_only_test.py host-build --peer-first
           python3 tests/clock_only_path_test.py host-build
           python3 tests/sender_clock_test.py host-build
           python3 tests/sender_audio_test.py host-build

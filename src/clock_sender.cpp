@@ -1,5 +1,6 @@
-// Clock-only Link peer: no Link Audio engine, audio channel or PCM input.
-#include <ableton/Link.hpp>
+// Clock-only peer using the proven streaming client's Link implementation.
+// Audio sharing stays disabled; there is no sink, channel or PCM input.
+#include <ableton/LinkAudio.hpp>
 #include "../sync/clock.h"
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -32,12 +33,20 @@ int main() {
   }
   address.sun_family = AF_UNIX;
   std::strcpy(address.sun_path, path);
-  ableton::Link link(120.0);
+  ableton::LinkAudio link(120.0, "TrimUI Brick Hammer");
   link.enable(true);
+  link.enableLinkAudio(false);
+  const bool diagnostics = std::getenv("AUDIOCAST_CLOCK_DIAGNOSTICS") &&
+    std::strcmp(std::getenv("AUDIOCAST_CLOCK_DIAGNOSTICS"), "1") == 0;
+  if (diagnostics) {
+    setvbuf(stdout, nullptr, _IOLBF, 0);
+    std::puts("CLOCK_CLIENT=streaming-compatible AUDIO_SHARING=off PCM_INPUT=none");
+  }
   // Preserve approximately the streaming path's 384 snapshots/second, using
   // a fixed timer instead of waiting for PCM. Never replay missed timer ticks.
   constexpr auto period = std::chrono::microseconds(2500);
   auto deadline = std::chrono::steady_clock::now();
+  auto reportAt = deadline;
   while (running) {
     const auto state = link.captureAppSessionState();
     const auto linkNow = link.clock().micros();
@@ -47,6 +56,12 @@ int main() {
     // A full, missing or closed emulator socket must never stall this peer.
     (void)sendto(fd, &snapshot, sizeof(snapshot), 0,
       reinterpret_cast<const sockaddr*>(&address), sizeof(address));
+    if (diagnostics && std::chrono::steady_clock::now() >= reportAt) {
+      std::printf("CLOCK_SOURCE host_us=%lld beat=%.6f phase=%.6f tempo=%.3f peers=%u playing=%u\n",
+        static_cast<long long>(snapshot.monotonic_us), snapshot.beat,
+        state.phaseAtTime(linkNow, 4.0), snapshot.tempo, snapshot.peers, snapshot.playing);
+      reportAt = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    }
     deadline += period;
     const auto now = std::chrono::steady_clock::now();
     if (deadline <= now) deadline = now + period;
