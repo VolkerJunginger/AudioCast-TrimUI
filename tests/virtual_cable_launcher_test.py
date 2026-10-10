@@ -44,7 +44,7 @@ if core.endswith('mgba-link_libretro.so'):
     for audio in ['on','off']:
         (app/'settings.txt').write_text(f'LINK_AUDIO={audio}\n')
         for protocol,ppq in [('fms-gba',24),('fms-clock',2),('stepper-gba',48)]:
-            for advance in [0,5,60,65,150]:
+            for advance in [-150,-65,-5,0,5,60,65,150]:
                 calls=run(f'PROTOCOL={protocol}\nPPQN={ppq}\nOFFSET_US={advance*1000}\n',SIM_READY='1')
                 assert len(calls)==1 and calls[0]['advance']==str(advance*1000)
                 assert 'audio_latency = "65"' in calls[0]['config']

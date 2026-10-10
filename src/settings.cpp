@@ -57,7 +57,7 @@ struct Menu {
         auto value=std::to_string(rates[(i+6+direction)%6]);call("settings.sh","set-ppqn",value.c_str());
       }
       if(row==4) {
-        auto value=std::to_string(std::clamp(advance+direction*5,0,150));
+        auto value=std::to_string(std::clamp(advance+direction*5,-150,150));
         call("settings.sh","set-advance",value.c_str());
       }
       load();message="Saved. Applies to the next game.";
@@ -106,7 +106,7 @@ struct Canvas {
     text(158,49,"LINK4BRICK",3,fg);text(160,101,"Audio and sync",0,muted);
     text(56,159,"Settings",1,muted);
     const std::string names[]={"Enabled","Link audio","Sync mode","Pulses per beat","Sync advance"};
-    const std::string values[]={m.enabled?"On":"Off",m.audio?"On":"Off",m.labels[m.protocol],m.protocol?std::to_string(m.ppqn)+(m.protocol==1?" (fixed)":""):"-",std::to_string(m.advance)+(m.advance?" ms early":" ms")};
+    const std::string values[]={m.enabled?"On":"Off",m.audio?"On":"Off",m.labels[m.protocol],m.protocol?std::to_string(m.ppqn)+(m.protocol==1?" (fixed)":""):"-",std::to_string(m.advance)+(m.advance<0?" ms late":m.advance>0?" ms early":" ms")};
     for(int i=0;i<5;i++) {
       int y=207+i*78;
       if(i==m.row)rounded(40,y-8,944,72,12,0xff25262a);
@@ -115,7 +115,7 @@ struct Canvas {
       if(i==m.row){text(936,y+7,">",2,muted);}
       if(i<4)rect(64,y+67,848,1,line);
     }
-    const char* hint=m.row==0?"Enable streaming and sync for normal GBA launches.":m.row==1?"Off keeps the Brick speaker and Link clock active.":m.row==4?"Play earlier to offset audio delay. 0-150 ms, in 5 ms steps.":m.row==3?(m.protocol==2?"Match STEPPER's LINK IN (BPQ) setting.":m.protocol==3?"Match FMS SYNC IN / CLOCK / PPQ.":"FMS GBA uses a fixed 24 pulses per beat."):m.protocol==2?"STEPPER: LINK IN. START waits for the next one.":m.protocol==3?"FMS: SYNC IN / CLOCK. START waits for the next one.":m.protocol==1?"FMS: SYNC IN / GBA. START waits for the next one.":"Choose FMS or STEPPER sync, or leave clock off.";
+    const char* hint=m.row==0?"Enable streaming and sync for normal GBA launches.":m.row==1?"Off keeps the Brick speaker and Link clock active.":m.row==4?"Negative: later. Positive: earlier. Adjust in 5 ms steps.":m.row==3?(m.protocol==2?"Match STEPPER's LINK IN (BPQ) setting.":m.protocol==3?"Match FMS SYNC IN / CLOCK / PPQ.":"FMS GBA uses a fixed 24 pulses per beat."):m.protocol==2?"STEPPER: LINK IN. START waits for the next one.":m.protocol==3?"FMS: SYNC IN / CLOCK. START waits for the next one.":m.protocol==1?"FMS: SYNC IN / GBA. START waits for the next one.":"Choose FMS or STEPPER sync, or leave clock off.";
     text(64,611,hint,0,muted);text(64,650,m.message,0,fg);
     rect(56,696,912,1,line);text(64,714,"Up / Down  Select",0,muted);text(356,714,"Left / Right  Adjust",0,muted);text(688,714,"A  Change    B  Back",0,muted);
   }

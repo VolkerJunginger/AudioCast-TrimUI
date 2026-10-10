@@ -38,12 +38,18 @@ with tempfile.TemporaryDirectory(prefix='ac-settings-') as d:
     cli(*helper,'set-ppqn','24',ok=False)
     cli(menu,'--change','2');assert cli(*helper,'get-clock')=='off'
     cli(*helper,'set-advance','150');cli(menu,'--change','4');assert cli(*helper,'get-advance')=='150'
-    cli(*helper,'set-advance','0');cli(menu,'--change','4','-1');assert cli(*helper,'get-advance')=='0'
+    cli(*helper,'set-advance','0');cli(menu,'--change','4','-1');assert cli(*helper,'get-advance')=='-5'
+    cli(menu,'--change','4');assert cli(*helper,'get-advance')=='0'
+    cli(*helper,'set-advance','-150');cli(menu,'--change','4','-1');assert cli(*helper,'get-advance')=='-150'
+    cli(*helper,'set-advance','-65');assert cli(*helper,'get-advance')=='-65'
+    assert (app/'cable/config.txt').read_text()=='PROTOCOL=off\nPPQN=24\nOFFSET_US=-65000\n'
+    cli(*helper,'set-clock','stepper-gba');cli(*helper,'set-ppqn','48');cli(*helper,'set-audio','off')
+    assert cli(*helper,'get-advance')=='-65'
     cli(*helper,'set-advance','65');cli(menu,'--change','4','-1');assert cli(*helper,'get-advance')=='60'
-    for bad in ['-5','1','64','151','155','065','+65','65.0','999999999999999999999','$(touch HACKED)']:
+    for bad in ['-1','-64','-151','-155','-065','-0','1','64','151','155','065','+65','65.0','999999999999999999999','-999999999999999999999','$(touch HACKED)']:
         before=(app/'cable/config.txt').read_bytes()
         cli(*helper,'set-advance',bad,ok=False);assert (app/'cable/config.txt').read_bytes()==before
-    for bad in ['-5000','64000','150001','065000','999999999999999999999','$(touch HACKED)']:
+    for bad in ['-64000','-150001','-065000','-0','64000','150001','065000','999999999999999999999','$(touch HACKED)']:
         (app/'cable/config.txt').write_text('PROTOCOL=fms-gba\nPPQN=24\nOFFSET_US='+bad+'\n')
         assert cli(*helper,'get-advance')=='0' and not (app/'HACKED').exists()
     cli(*helper,'set-advance','65');cli(menu,'--render',str(sd/'advance-menu.ppm'))
@@ -75,4 +81,4 @@ with tempfile.TemporaryDirectory(prefix='ac-settings-') as d:
 
     finally:busy.rmdir()
     assert not list(sd.rglob('*.log')) and not list(app.glob('*.tmp.*'))
-print('PASS: menu actions, 0-150 ms sync advance in 5 ms steps, persistence across modes/PPQ/audio, bounded values, GBA launcher and dynamic icons restored, data not executed, symlink/busy protection, no logs')
+print('PASS: menu actions, signed -150 to +150 ms timing in 5 ms steps, persistence across modes/PPQ/audio, bounded values, GBA launcher and dynamic icons restored, data not executed, symlink/busy protection, no logs')

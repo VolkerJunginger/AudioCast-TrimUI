@@ -12,13 +12,17 @@ fi
 CLOCK=off
 PPQN=24
 ADVANCE=0
+# Canonical signed decimal data only; check bounds before shell arithmetic.
+valid_advance() {
+  magnitude=${1#-}
+  case "$magnitude" in ''|*[!0-9]*|0[0-9]*) return 1;; esac
+  [ "$1" != -0 ] && [ "$magnitude" -le "$2" ] 2>/dev/null && [ "$((magnitude % $3))" = 0 ]
+}
 if [ -f "$APP/cable/config.txt" ] && [ ! -L "$APP/cable/config.txt" ]; then
   while IFS='=' read -r name value; do
     case "$name:$value" in PROTOCOL:off|PROTOCOL:fms-gba|PROTOCOL:stepper-gba|PROTOCOL:fms-clock) CLOCK=$value;; PPQN:1|PPQN:2|PPQN:3|PPQN:4|PPQN:6|PPQN:8|PPQN:12|PPQN:24|PPQN:48|PPQN:96) PPQN=$value;; esac
     if [ "$name" = OFFSET_US ]; then
-      case "$value" in ''|*[!0-9]*|0[0-9]*) ;;
-        *) if [ "$value" -le 150000 ] 2>/dev/null && [ "$((value % 5000))" = 0 ]; then ADVANCE=$((value / 1000)); fi;;
-      esac
+      if valid_advance "$value" 150000 5000; then ADVANCE=$((value / 1000)); fi
     fi
   done < "$APP/cable/config.txt"
 fi
@@ -37,8 +41,7 @@ case "${1:-show}" in
       *) echo 'PPQ is fixed for this sync mode.'; exit 2;;
     esac;;
   set-advance)
-    case "${2:-}" in ''|*[!0-9]*|0[0-9]*) exit 2;; esac
-    [ "$2" -le 150 ] 2>/dev/null && [ "$(($2 % 5))" = 0 ] || exit 2
+    valid_advance "${2:-}" 150 5 || exit 2
     target="$APP/cable/config.txt";;
   *) echo 'LINK4BRICK settings: unknown action' >&2; exit 2;;
 esac

@@ -48,7 +48,7 @@ static void press(struct mCore* c) {
 }
 int main(int argc, char** argv) {
     int advance = argc > 1 ? atoi(argv[1]) : 0;
-    assert(advance >= 0 && advance <= 150000);
+    assert(advance >= -150000 && advance <= 150000);
     struct mLogger log={.log=quiet};mLogSetDefaultLogger(&log);
     struct mCore* c=GBACoreCreate();assert(c->init(c));mCoreInitConfig(c,NULL);
     mColor* video=calloc(240*160,sizeof(mColor));c->setVideoBuffer(c,video,240);
@@ -84,12 +84,15 @@ int main(int argc, char** argv) {
             s.beat=(change-1000000)*120/60000000.0+(now-change)*150/60000000.0;
         }
         if(f==10) press(c);
-        if(f==120) { /* about 2.009 s: START has arrived exactly on beat 4 */
+        if(f==120) { /* about 2.009 s: negative advance waits after beat 4. */
+            assert(starts==(advance < -10000 ? 0U : 1U));
+        }
+        if(f==132) { /* Enough time for the largest configured delay. */
             assert(starts==1);
             double startUs=(uint32_t)(startCycle-baseCycle)*1000000.0/16777216;
             printf("Beat-4 START: %.1f us into session (advance %d us)\n",startUs,advance);
             assert(fabs(startUs-(2000000-advance))<200);
-            assert(ticks<=(unsigned)(advance/20833+1));
+            assert(ticks<=(unsigned)((200000+advance)/20833+1));
         }
         if(f==590) {
             printf("120 BPM / 24 PPQN: %.1f..%.1f us\n",minInterval,maxInterval);
