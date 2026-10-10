@@ -35,9 +35,9 @@ for _ in range(12):
  data=clock.recv(100);assert len(data)==40
  assert struct.unpack('=IIqddII',data)[0]==0x41434c4b
 clock.close()
-result=subprocess.run([str(app/'bin/alsa-probe'),'ac_game','2'],capture_output=True,text=True)
+result=subprocess.run([str(app/'bin/alsa-probe'),'ac_game','1'],capture_output=True,text=True)
 assert result.returncode==0,result.stderr
-assert 'frames=96000' in result.stdout,result.stdout
+assert 'frames=48000' in result.stdout,result.stdout
 Path(os.environ['AUDIOCAST_CLOCK_SOCKET']+'.ready').write_bytes(b'1')
 Path(os.environ['AC_SD'],'direct-speaker-ok').write_bytes(b'1')
 ''');ra.chmod(0o755)
