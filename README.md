@@ -37,7 +37,7 @@ Other firmware and Game Boy sync are not supported by this release.
 | Sync mode | Off, FMS GBA, FMS Clock, STEPPER |
 | PPQ | FMS GBA: 24; FMS Clock: 1, 2, 3, 4, 6, 8; STEPPER: 4, 6, 12, 24, 48, 96 |
 
-Start with **FMS GBA / 24 PPQ** and set FMS to **SYNC IN / GBA**. Press START on the Brick to queue the next “one.” Match the program's sync input and PPQ when using FMS Clock or STEPPER. Change settings with the game closed.
+Start with **FMS GBA / 24 PPQ** and set FMS to **SYNC IN / GBA**. Press START on the Brick to queue the next “one.” Match the program's sync input and PPQ when using FMS Clock or STEPPER. Change settings with the game closed. With Link Audio OFF, a dedicated Link clock process follows tempo and phase while sound goes directly to the speaker. No audio channel, PCM FIFO or relay is created. FMS emulation and speaker conversion still run, so the CPU saving depends on the song.
 
 ## Reversible by design
 

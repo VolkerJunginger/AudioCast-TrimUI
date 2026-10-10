@@ -1,16 +1,11 @@
-LINK4BRICK v1.0.0 is the stable StockUI release for TrimUI Brick Hammer.
+LINK4BRICK v1.0.1 adds a dedicated clock-only path for TrimUI Brick Hammer / StockUI.
 
-It brings together the device-confirmed FMS GBA audio, live Link tempo following and START queued to the next four-beat “one,” with the final icons and minimal settings page. The working audio and clock implementation is preserved.
+With **Link audio OFF**, sound goes directly to the Brick speaker and a separate plain Link process follows live tempo and four-beat phase. This removes the capture FIFO, PCM pipe/relay, sample scanning and Link Audio engine from that mode. Clock delivery runs on a fixed timer and continues without PCM input.
 
-- Link Audio to Push as **Brick Out**, alongside normal speaker audio.
-- Clock-only mode by switching Link audio OFF.
-- FMS GBA at 24 PPQ, FMS Clock at 1/2/3/4/6/8 PPQ, and STEPPER at 4/6/12/24/48/96 PPQ.
-- Fixed **65 ms** audio buffer; no delay-compensation or buffer controls.
-- One **LINK4BRICK** StockUI app, with no runtime log files or separate FMS launcher.
-- Verified Terminal installer with settings preservation, diagnostic-helper cleanup, backups and undo.
+The working audio-streaming sender and the entire emulator clock/audio integration are unchanged. FMS GBA START still queues the next four-beat “one,” PPQ choices and the 65 ms speaker buffer remain unchanged, and normal settings/save files are preserved by the Terminal installer.
 
-Download **LINK4BRICK-StockUI-v1.0.0.zip** and **install_link4brick.py** into the same folder, then follow the [installation guide](https://github.com/VolkerJunginger/LINK4BRICK/blob/main/INSTALL.txt). The source archive includes the pinned Link and mGBA sources and generated menu assets. **SHA256SUMS** verifies all three downloads.
+The emulator and speaker conversion still consume CPU. This update removes unnecessary forwarding overhead; its CPU saving on the Brick depends on the song and still needs device measurement.
 
-FMS GBA has been confirmed on the user's Brick Hammer and Push. STEPPER's sync path is covered by emulator tests; individual ROM versions need hardware confirmation. Game Boy sync, other firmware and general multiplayer Game Link are outside this release. Compensate transport latency on Push if needed.
+Automated verification covers live 90/150 BPM with no PCM input and no advertised audio channel, direct ALSA playback without a FIFO, nonblocking clock delivery, normal/signal cleanup, speaker continuation after clock failure, the existing streaming tests, ARM64 execution and installer undo.
 
-SD-card-only and reversible. No ROMs, firmware, RetroArch binary, minarch or global ALSA configuration changes. GPL-2.0-or-later with the private mGBA integration under MPL-2.0.
+Download **LINK4BRICK-StockUI-v1.0.1.zip** and **install_link4brick.py** into one folder, then follow the installation guide. The source archive and SHA256SUMS accompany the binaries. SD-card-only, reversible and no runtime log files.
