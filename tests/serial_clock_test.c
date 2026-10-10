@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
         }
         if(f==10) press(c);
         if(f==120) { /* about 2.009 s: negative advance waits after beat 4. */
-            assert(starts==(advance < -10000 ? 0U : 1U));
+            assert(starts==((2000000-advance) <= 120*frameUs ? 1U : 0U));
         }
         if(f==132) { /* Enough time for the largest configured delay. */
             assert(starts==1);

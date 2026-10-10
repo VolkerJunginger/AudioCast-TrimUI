@@ -50,6 +50,8 @@ jobs:
           ./serial-clock-test 150000
           ./serial-clock-test -65000
           ./serial-clock-test -150000
+          ./serial-clock-test -5000
+          ./serial-clock-test -10000
           python3 tools/build_probe.py mgba-build --stepper --output stepper-clock-test
           timeout 60 ./stepper-clock-test
           python3 tools/build_probe.py mgba-build --audio --output audio-rate-test
